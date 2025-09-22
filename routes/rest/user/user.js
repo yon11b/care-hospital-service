@@ -2,6 +2,11 @@ const models = require('../../../models');
 const sha256 = require('sha256');
 const axios = require('axios');
 const dotenv = require('dotenv').config();
+const crypto = require('crypto');
+
+function generateAdminToken(length = 32) {
+  return crypto.randomBytes(length).toString('hex');
+}
 
 async function getSession(req, res) {
   if (req.session.user) {
@@ -32,7 +37,11 @@ async function checkFacility(bizNumber, email) {
     if (resp.data && resp.data.data && resp.data.data.length > 0) {
       const result = resp.data.data[0];
       if (result.b_stt === '계속사업자') {
-        await models.staff.update({ status: 'approved' }, { where: { email } });
+        const token = generateAdminToken();
+        console.log('>>>>>>>>>>>>>>>>');
+        console.log(token);
+        console.log('>>>>>>>>>>>>>>>>');
+        await models.staff.update({ status: 'approved', facility_token: token }, { where: { email } });
         return { valid: true, info: result };
       } else {
         await models.staff.update({ status: 'rejected' }, { where: { email } });
@@ -41,8 +50,8 @@ async function checkFacility(bizNumber, email) {
     }
     return { valid: false, info: null };
   } catch (err) {
-    console.error('사업자번호 조회 실패:', err.response?.data || err.messag);
-    return { valid: false, error: err.response?.data || err.messag };
+    console.error('사업자번호 조회 실패:', err.response?.data || err.message);
+    return { valid: false, error: err.response?.data || err.message };
   }
 }
 
@@ -55,21 +64,40 @@ async function upsertUser(req, res) {
     });
 
     if (!user) {
-      await models.staff.create({
-        name: req.body.name,
-        password: sha256(req.body.password),
-        email: req.body.email,
-        status: 'pending',
-        role: req.body.role,
-        facility_id: req.body.facility_id,
-        facility_number: req.body.facility_number,
-      });
-      await checkFacility(req.body.facility_number, req.body.email);
+      if (req.body.role == 'owner' && req.body.facility_number) {
+        await models.staff.create({
+          name: req.body.name,
+          password: sha256(req.body.password),
+          email: req.body.email,
+          status: 'pending',
+          role: req.body.role,
+          facility_id: req.body.facility_id,
+          facility_number: req.body.facility_number,
+          //token: 'test',
+        });
+        checkFacility(req.body.facility_number, req.body.email);
+      } else if (req.body.role == 'staff') {
+        const token = await models.staff.findOne({
+          where: {
+            facility_token: req.body.facility_token,
+          },
+        });
+        if (token) {
+          await models.staff.create({
+            name: req.body.name,
+            password: sha256(req.body.password),
+            email: req.body.email,
+            status: 'approved',
+            role: 'staff',
+            facility_id: req.body.facility_id,
+          });
+        }
+      }
     } else {
       await models.staff.update(
         {
           name: req.body.name,
-          password: req.body.password,
+          password: sha256(req.body.password),
           email: req.body.email,
           role: req.body.role,
         },
