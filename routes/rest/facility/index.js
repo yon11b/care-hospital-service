@@ -23,6 +23,7 @@ const { getFacility, getFacilities, upsertFacility } = require('./facility');
 
 router.get('/:id', getFacility);
 router.get('/', getFacilities);
+//router.get('/gps', getFacilities);
 //router.post('/', upload.single('file-front'), upsertFacility);
 
 module.exports = router;

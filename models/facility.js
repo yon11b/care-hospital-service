@@ -22,17 +22,17 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         comment: '기관 전화번호',
       },
-      currentPatients: {
+      current_patients: {
         type: DataTypes.DATE,
         allowNull: false,
         comment: '전체 환자 수',
       },
-      manPatients: {
+      man_patients: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: '남성 환자 수',
       },
-      womanPatients: {
+      woman_patients: {
         type: DataTypes.DATE,
         allowNull: false,
         comment: '여성 환자 수',
@@ -52,17 +52,17 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: '기관사이트',
       },
-      sidoName: {
+      sido_name: {
         type: DataTypes.BOOLEAN,
         allowNull: true,
         comment: '시,도 이름',
       },
-      sgguName: {
+      sggu_name: {
         type: DataTypes.DATE,
         allowNull: false,
         comment: '시군구 이름',
       },
-      dongName: {
+      dong_name: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: '동 이름',
@@ -72,37 +72,37 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         comment: '우편번호',
       },
-      establishedDate: {
+      established_date: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: '기관설립날짜',
       },
-      totalDoctorCount: {
+      total_doctor_count: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: '전체 의사 수',
       },
-      xPos: {
+      longitude: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: 'x 좌표 위치',
       },
-      yPos: {
+      latitude: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: 'y 좌표 위치',
       },
-      primaryCode: {
+      primary_code: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: '요양기호',
       },
-      userCapacity: {
+      user_capacity: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: '수용 가능 인원',
       },
-      totalManagerCount: {
+      total_manager_count: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: '전체 복지사 수',
@@ -111,6 +111,8 @@ module.exports = (sequelize, DataTypes) => {
     {
       tableName: 'facility',
       comment: '기관',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
     },
   );
 

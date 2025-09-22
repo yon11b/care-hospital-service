@@ -1,17 +1,49 @@
 const models = require('../../../models');
 const sha256 = require('sha256');
+const { literal, Op } = require('sequelize');
 const app = require('../../../app');
 
 async function getFacilities(req, res) {
   try {
-    const resp = await models.facility.findAll({
-      // attributes: {
-      //   include: [[models.Sequelize.fn('COUNT', models.Sequelize.col('reviews.id')), 'reviewsCount']],
-      // },
-      //group: ['facility.id'],
-      //include: [],
-    });
-    res.send(resp);
+    const page = parseInt(req.query.page) || 1; // 기본 1페이지
+    const limit = parseInt(req.query.limit) || 20; // 기본 20개
+    const offset = (page - 1) * limit;
+    const latitude = parseFloat(req.query.latitude);
+    const longitude = parseFloat(req.query.longitude);
+    if (latitude && longitude) {
+      const resp = await models.facility.findAll({
+        where: {
+          longitude: { [Op.ne]: '' },
+          latitude: { [Op.ne]: '' },
+        },
+        attributes:
+          latitude && longitude
+            ? {
+                include: [
+                  [
+                    literal(
+                      `ST_DistanceSphere(
+                  ST_MakePoint(longitude::double precision, latitude::double precision),
+                  ST_MakePoint(${longitude}, ${latitude})
+                )`,
+                    ),
+                    'distance',
+                  ],
+                ],
+              }
+            : undefined,
+        order: literal('distance ASC'),
+        limit,
+        offset,
+      });
+      res.json({
+        Message: 'Facility select successfully.',
+        ResultCode: 'ERR_OK',
+        Size: resp.length,
+        Response: resp,
+      });
+      //res.send(resp);
+    }
   } catch (err) {
     //bad request
     console.log(err);
@@ -21,6 +53,7 @@ async function getFacilities(req, res) {
     });
   }
 }
+
 async function getFacility(req, res) {
   try {
     //pid: 받아온 id 파라미터
