@@ -8,11 +8,11 @@ const ejs = require('ejs');
 const cors = require('cors');
 const session = require('express-session');
 const history = require('connect-history-api-fallback');
+const { Pool } = require('pg');
 const pgSession = require('connect-pg-simple')(session);
-
+require('dotenv').config();
 const config = require('./config/config.json')[process.env.NODE_ENV || 'development'];
 const viewPath = config.path;
-
 var app = express();
 const corsOptions = {
   origin: true,
@@ -39,14 +39,19 @@ if (process.env.NODE_ENV === 'production') {
 
 app.use('/', express.static(path.join(__dirname, config.path.upload_path)));
 
-const sessionStore = new pgSession({
+const pgPool = new Pool({
   host: config.db.host,
   port: config.db.port,
   user: config.db.username,
-  password: config.db.password,
+  password: config.db.password, // 문자열로
   database: config.db.database,
+  ssl: { rejectUnauthorized: false }, // 필요 시
 });
 
+const sessionStore = new pgSession({
+  pool: pgPool, // 직접 pool 전달
+  tableName: 'session',
+});
 app.use(compression());
 app.use(
   session({
@@ -74,9 +79,9 @@ if (process.env.proxy == 'true') {
 
 //DB Sync
 
-const sequelize = require('sequelize');
-const models = require('./models');
-models.sequelize.sync();
+// const sequelize = require('sequelize');
+// const models = require('./models');
+// models.sequelize.sync();
 
 //error handling
 
@@ -91,11 +96,10 @@ app.use((req, res, next) => {
 // will print stacktrace
 if (app.get('env') === 'development') {
   app.use((err, req, res, next) => {
-    res.status(err.status || 500);
-    res.render('error', {
+    res.status(err.status || 500).json({
+      result: false,
       message: err.message,
       error: err,
-      title: 'error',
     });
   });
 } else {
@@ -108,5 +112,4 @@ if (app.get('env') === 'development') {
     });
   });
 }
-
 module.exports = app;

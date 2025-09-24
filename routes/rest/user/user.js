@@ -1,16 +1,16 @@
 const models = require('../../../models');
+const session = require('express-session');
 const sha256 = require('sha256');
 const axios = require('axios');
-const dotenv = require('dotenv').config();
 const crypto = require('crypto');
-
+require('dotenv').config();
 function generateAdminToken(length = 32) {
   return crypto.randomBytes(length).toString('hex');
 }
 
 async function getSession(req, res) {
   if (req.session.user) {
-    res.send({
+    res.json({
       result: true,
       user: req.session.user,
     });
@@ -38,10 +38,7 @@ async function checkFacility(bizNumber, email) {
       const result = resp.data.data[0];
       if (result.b_stt === '계속사업자') {
         const token = generateAdminToken();
-        console.log('>>>>>>>>>>>>>>>>');
-        console.log(token);
-        console.log('>>>>>>>>>>>>>>>>');
-        await models.staff.update({ status: 'approved', facility_token: token }, { where: { email } });
+        await models.staff.update({ status: 'verified', facility_token: token }, { where: { email } });
         return { valid: true, info: result };
       } else {
         await models.staff.update({ status: 'rejected' }, { where: { email } });
@@ -52,6 +49,47 @@ async function checkFacility(bizNumber, email) {
   } catch (err) {
     console.error('사업자번호 조회 실패:', err.response?.data || err.message);
     return { valid: false, error: err.response?.data || err.message };
+  }
+}
+// admin 승인 API
+async function approveFacility(req, res) {
+  try {
+    // 관리자 권한 체크 (세션에서 role 확인)
+    if (!req.session.user || req.session.user.role !== 'admin') {
+      return res.status(403).send({
+        result: false,
+        msg: '관리자 권한이 없습니다.',
+      });
+    }
+    const email = req.body.email;
+    // 먼저 verified 상태인지 확인
+    const staff = await models.staff.findOne({
+      where: { email: email },
+    });
+    if (!staff) {
+      return res.status(404).send({
+        result: false,
+        msg: '해당 유저를 찾을 수 없습니다.',
+      });
+    }
+    if (staff.status !== 'verified') {
+      return res.status(400).send({
+        result: false,
+        msg: `승인할 수 없는 상태입니다. 현재 상태: ${staff.status}`,
+      });
+    }
+    // 승인 처리
+    await models.staff.update({ status: 'approved' }, { where: { email } });
+    res.send({
+      result: true,
+      msg: '승인 완료',
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({
+      result: false,
+      msg: err.toString(),
+    });
   }
 }
 
@@ -75,7 +113,7 @@ async function upsertUser(req, res) {
           facility_number: req.body.facility_number,
           //token: 'test',
         });
-        checkFacility(req.body.facility_number, req.body.email);
+        await checkFacility(req.body.facility_number, req.body.email);
       } else if (req.body.role == 'staff') {
         const token = await models.staff.findOne({
           where: {
@@ -131,29 +169,28 @@ async function upsertUser(req, res) {
 
 async function login(req, res) {
   try {
-    const user = await models.staff.findOne({
+    //const user = await models.staff.findAll();
+    const userinfo = await models.staff.findOne({
       where: {
         email: req.body.email,
-        password: sha256(req.body.password),
+        password: String(sha256(req.body.password)),
       },
       attributes: ['id', 'name', 'email', 'status', 'role'],
     });
 
-    if (user) {
-      req.session.user = user;
-      res.send({
-        result: true,
-        session: user,
-      });
+    if (userinfo) {
+      //res.json(user);
+      req.session.user = userinfo;
+      res.json('로그인, 세션 저장 성공');
     } else {
-      res.send({
+      res.json({
         result: false,
         message: '로그인에 실패하였습니다.',
       });
     }
   } catch (err) {
     console.log(err);
-    res.status(400).send({
+    res.json({
       result: false,
       msg: err.toString(),
     });
@@ -208,7 +245,7 @@ async function logout(req, res) {
 module.exports = {
   getSession,
   upsertUser,
+  approveFacility,
   login,
-  //checkID,
   logout,
 };
