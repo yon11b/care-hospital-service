@@ -18,27 +18,27 @@ module.exports = (sequelize, DataTypes) => {
         comment: '기관주소',
       },
       telno: {
-        type: DataTypes.DATE,
+        type: DataTypes.STRING,
         allowNull: false,
         comment: '기관 전화번호',
       },
       current_patients: {
-        type: DataTypes.DATE,
+        type: DataTypes.INTEGER,
         allowNull: false,
         comment: '전체 환자 수',
       },
       man_patients: {
-        type: DataTypes.STRING,
+        type: DataTypes.INTEGER,
         allowNull: true,
         comment: '남성 환자 수',
       },
       woman_patients: {
-        type: DataTypes.DATE,
+        type: DataTypes.INTEGER,
         allowNull: false,
         comment: '여성 환자 수',
       },
       description: {
-        type: DataTypes.DATE,
+        type: DataTypes.STRING,
         allowNull: false,
         comment: '병원 설명',
       },
@@ -53,12 +53,12 @@ module.exports = (sequelize, DataTypes) => {
         comment: '기관사이트',
       },
       sido_name: {
-        type: DataTypes.BOOLEAN,
+        type: DataTypes.STRING,
         allowNull: true,
         comment: '시,도 이름',
       },
       sggu_name: {
-        type: DataTypes.DATE,
+        type: DataTypes.STRING,
         allowNull: false,
         comment: '시군구 이름',
       },
@@ -68,7 +68,7 @@ module.exports = (sequelize, DataTypes) => {
         comment: '동 이름',
       },
       postno: {
-        type: DataTypes.DATE,
+        type: DataTypes.STRING,
         allowNull: false,
         comment: '우편번호',
       },
@@ -78,7 +78,7 @@ module.exports = (sequelize, DataTypes) => {
         comment: '기관설립날짜',
       },
       total_doctor_count: {
-        type: DataTypes.STRING,
+        type: DataTypes.INTEGER,
         allowNull: true,
         comment: '전체 의사 수',
       },
@@ -98,14 +98,24 @@ module.exports = (sequelize, DataTypes) => {
         comment: '요양기호',
       },
       user_capacity: {
-        type: DataTypes.STRING,
+        type: DataTypes.INTEGER,
         allowNull: true,
         comment: '수용 가능 인원',
       },
       total_manager_count: {
-        type: DataTypes.STRING,
+        type: DataTypes.INTEGER,
         allowNull: true,
         comment: '전체 복지사 수',
+      },
+      today_meal: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        comment: '오늘의 급식',
+      },
+      today_meal_url: {
+        type: DataTypes.JSONB,
+        allowNull: true,
+        comment: '오늘의 급식 사진',
       },
     },
     {

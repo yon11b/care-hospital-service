@@ -83,18 +83,49 @@ async function getFacility(req, res) {
   }
 }
 async function upsertFacility(req, res) {
-  try {
-    //req.body.userId = req.session.user.id;
-    await models.facility.upsert({
-      title: req.body.title,
-      startTime: req.body.startTime,
-      openTime: req.body.openTime,
-      maxNum: req.body.maxNum,
-      userId: req.body.userId,
-      poster: req.file.filename,
+  if (req.method !== 'POST') {
+    return res.status(405).send({
+      Message: 'Method not allowed',
+      ResultCode: 'ERR_INVALID_DATA',
     });
+  }
+  try {
+    console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>');
     console.log(req.file);
-    res.send({ result: req.file });
+    console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>');
+    // req.body.userId = req.session.user.id;
+    if (!req.session.user || req.session.user.facility_id != req.params.facilityid) {
+      console.log(req.session.user);
+      console.log(req.session.user.facility_id);
+      console.log(req.params.facilityid);
+      res.status(401).send({
+        Message: 'Unauthorized',
+        ResultCode: 'ERR_UNAUTHORIZED',
+      });
+    } else {
+      await models.facility.update(
+        {
+          // PK는 반드시 포함해야 어떤 row를 upsert할지 알 수 있음
+          ...req.body, // body에 담긴 변경값만 반영
+          today_meal_url: req.file ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}` : undefined,
+          // 파일이 있는 경우만 반영
+        },
+        {
+          where: {
+            id: req.params.facilityid,
+          },
+        },
+      );
+      console.log(req.file);
+      const updatedFacility = await models.facility.findByPk(req.params.facilityid);
+      res.send({
+        Message: 'Success to facility information updated',
+        ResultCode: 'ERR_OK',
+        Response: {
+          updatedFacility,
+        },
+      });
+    }
   } catch (err) {
     // bad request
     console.log(err);

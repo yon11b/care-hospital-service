@@ -175,7 +175,7 @@ async function login(req, res) {
         email: req.body.email,
         password: String(sha256(req.body.password)),
       },
-      attributes: ['id', 'name', 'email', 'status', 'role'],
+      attributes: ['id', 'name', 'email', 'facility_id', 'status', 'role'],
     });
 
     if (userinfo) {
