@@ -1,7 +1,7 @@
 // 커뮤니티 댓글
 
 module.exports = (sequelize, DataTypes) => {
-    const Comments = sequelize.define('Comments', {
+    const comments = sequelize.define('comments', {
         id: { 
             type: DataTypes.INTEGER, 
             primaryKey: true, 
@@ -33,21 +33,21 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     //Foreign keys
-    Comments.associate = (models) => {
-        // 댓글 작성자(User) 1:N 댓글(Comments)
-        Comments.belongsTo(models.User, { foreignKey: 'user_id'});
+    comments.associate = (models) => {
+        // 댓글 작성자(user) 1:N 댓글(comments)
+        comments.belongsTo(models.user, { foreignKey: 'user_id'});
 
-        // 커뮤니티(Community) 1 : N 댓글(Comments)
-        Comments.belongsTo(models.Community, { foreignKey: 'community_id'});
+        // 커뮤니티(community) 1 : N 댓글(comments)
+        comments.belongsTo(models.community, { foreignKey: 'community_id'});
 
         // 부모 댓글(self-referencing)
-        Comments.belongsTo(models.Comments, { foreignKey: 'parent_id', as: 'parentComment' });
+        comments.belongsTo(models.comments, { foreignKey: 'parent_id', as: 'parentComment' });
 
         // 대댓글(self-referencing)
-        Comments.hasMany(models.Comments, { foreignKey: 'parent_id', sourceKey: 'id', as: 'replies' });
+        comments.hasMany(models.comments, { foreignKey: 'parent_id', sourceKey: 'id', as: 'replies' });
 
     };
 
 
-    return Comments;
+    return comments;
 };

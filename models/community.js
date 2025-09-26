@@ -1,7 +1,7 @@
 // 게시글 커뮤니티
 
 module.exports = (sequelize, DataTypes) => { 
-    const Community = sequelize.define('Community', { 
+    const community = sequelize.define('community', { 
         id: { 
             type: DataTypes.INTEGER, 
             primaryKey: true, 
@@ -20,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT, 
             allowNull: false, 
         }, 
-        img: { 
+        images: { 
             type: DataTypes.JSONB, 
             allowNull: true, 
         }, 
@@ -30,13 +30,13 @@ module.exports = (sequelize, DataTypes) => {
         underscored: true, 
     }); 
     
-    Community.associate = (models) => { 
+    community.associate = (models) => { 
         // Community (1 : N) User 
-        Community.belongsTo(models.User, { foreignKey: 'user_id'}); 
-        // Community (1 : N) Comments 
-        Community.hasMany(models.Comments, { foreignKey: 'community_id', sourceKey: 'id'}); 
+        community.belongsTo(models.user, { foreignKey: 'user_id'}); 
+        // Community (1 : N) comments 
+        community.hasMany(models.comments, { foreignKey: 'community_id', sourceKey: 'id'}); 
     }; 
     
-    return Community; 
+    return community; 
 
 };

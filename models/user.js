@@ -1,7 +1,7 @@
 // models/user.js 
 // 사용자 
 module.exports = (sequelize, DataTypes) => { 
-    const User = sequelize.define('User', { 
+    const user = sequelize.define('user', { 
         id: { 
             type: DataTypes.INTEGER, 
             primaryKey: true, 
@@ -40,12 +40,12 @@ module.exports = (sequelize, DataTypes) => {
     }); 
     
     // 다른 테이블과 관계 정의 
-    User.associate = (models) => { 
-        // User(사용자) 1 : N Community(커뮤니티) 
-        User.hasMany(models.Community, { foreignKey: 'user_id' }); 
-        // User(사용자) 1 : N Comments (댓글) 
-        User.hasMany(models.Comments, { foreignKey: 'user_id', sourceKey: 'id' }); 
+    user.associate = (models) => { 
+        // user(사용자) 1 : N community(커뮤니티) 
+        user.hasMany(models.community, { foreignKey: 'user_id' }); 
+        // user(사용자) 1 : N comments (댓글) 
+        user.hasMany(models.comments, { foreignKey: 'user_id', sourceKey: 'id' }); 
     }; 
     
-    return User; 
+    return user; 
 };
