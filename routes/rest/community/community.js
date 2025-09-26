@@ -18,7 +18,7 @@ async function getCommunities(req, res) {
       where.id = { [Sequelize.Op.lt]: lastId }; // 마지막 글보다 작은 id만 가져오기
     }
 
-    const resp = await models.Community.findAll({
+    const resp = await models.community.findAll({
       where,
       attributes: [
         'id', 'title', 'createdAt', 'content',
@@ -31,14 +31,14 @@ async function getCommunities(req, res) {
         [Sequelize.literal(`(
             SELECT COUNT(*)
             FROM "comments" AS c
-            WHERE c.community_id = "Community"."id"
+            WHERE c.community_id = "community"."id"
         )`), 
         'totalComments'
         ]
       ],
       include: [
         { // 작성자 정보 (이름)
-          model: models.User,         
+          model: models.user,         
           attributes: ['id', 'name']        
         },
       ],
@@ -76,12 +76,12 @@ async function getCommunity(req, res) {
     const offset = (page - 1) * limit; // 페이징 -> 쿼리에서 몇 번째 레코드부터 가져올지 지정
 
 
-    const resp = await models.Community.findOne({
+    const resp = await models.community.findOne({
       where: {
         id : communityId, 
       },
       attributes:[
-        'id', 'title', 'content', 'created_at', 'img',
+        'id', 'title', 'content', 'created_at', 'images',
         [Sequelize.literal(`(
             SELECT COUNT(*)
             FROM "comments" AS c
@@ -91,12 +91,12 @@ async function getCommunity(req, res) {
       include:[ 
         // 작성자 (id, 이름)
         {
-          model: models.User,
+          model: models.user,
           attributes: ['id', 'name'] 
         },
         // 댓글 (대댓글 아님)
         {
-          model:models.Comments,
+          model:models.comments,
           attributes : ['id', 'content', 'parent_id', 'created_at'],
           where : { parent_id : null },
           required: false,  // LEFT OUTER JOIN -> 댓글 없는 글 조회 가능
@@ -107,19 +107,19 @@ async function getCommunity(req, res) {
           include:[
             // 댓글 작성자
             {
-              model : models.User, 
+              model : models.user, 
               attributes : ['id', 'name']
             },
             // 대댓글
             {
-              model:models.Comments, 
+              model:models.comments, 
               as:'replies', // self-association alias
               attributes : ['id', 'content', 'created_at'],
               separate: true, // 대댓글도 별도 쿼리
               order: [['created_at', 'ASC']], // 대댓글 오름차순              
               include:[
                 {
-                  model:models.User, // 대댓글 작성자
+                  model:models.user, // 대댓글 작성자
                   attributes: ['id', 'name']
                 },
               ],
