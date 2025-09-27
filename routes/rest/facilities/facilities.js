@@ -10,40 +10,43 @@ async function getFacilities(req, res) {
     const offset = (page - 1) * limit;
     const latitude = parseFloat(req.query.latitude);
     const longitude = parseFloat(req.query.longitude);
-    if (latitude && longitude) {
-      const resp = await models.facility.findAll({
-        where: {
-          longitude: { [Op.ne]: '' },
-          latitude: { [Op.ne]: '' },
-        },
-        attributes:
-          latitude && longitude
-            ? {
-                include: [
-                  [
-                    literal(
-                      `ST_DistanceSphere(
+    const name = req.query.name;
+
+    //if (latitude && longitude) {
+    const resp = await models.facilities.findAll({
+      where: {
+        longitude: { [Op.ne]: '' },
+        latitude: { [Op.ne]: '' },
+        ...(name && { name: { [Op.iLike]: `%${name}%` } }),
+      },
+      attributes:
+        latitude && longitude
+          ? {
+              include: [
+                [
+                  literal(
+                    `ST_DistanceSphere(
                   ST_MakePoint(longitude::double precision, latitude::double precision),
                   ST_MakePoint(${longitude}, ${latitude})
                 )`,
-                    ),
-                    'distance',
-                  ],
+                  ),
+                  'distance',
                 ],
-              }
-            : undefined,
-        order: literal('distance ASC'),
-        limit,
-        offset,
-      });
-      res.json({
-        Message: 'Facility select successfully.',
-        ResultCode: 'ERR_OK',
-        Size: resp.length,
-        Response: resp,
-      });
-      //res.send(resp);
-    }
+              ],
+            }
+          : undefined,
+      order: latitude && longitude ? literal('distance ASC') : [['id', 'ASC']],
+      limit,
+      offset,
+    });
+    res.json({
+      Message: 'Facility select successfully.',
+      ResultCode: 'ERR_OK',
+      Size: resp.length,
+      Response: resp,
+    });
+    //res.send(resp);
+    //}
   } catch (err) {
     //bad request
     console.log(err);
@@ -58,7 +61,7 @@ async function getFacility(req, res) {
   try {
     //pid: 받아온 id 파라미터
     const pid = req.params.id;
-    const resp = await models.facility.findOne({
+    const resp = await models.facilities.findOne({
       where: {
         id: pid,
       },
@@ -82,6 +85,7 @@ async function getFacility(req, res) {
     });
   }
 }
+
 async function upsertFacility(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).send({
@@ -90,25 +94,15 @@ async function upsertFacility(req, res) {
     });
   }
   try {
-    console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>');
-    console.log(req.file);
-    console.log('>>>>>>>>>>>>>>>>>>>>>>>>>>>');
-    // req.body.userId = req.session.user.id;
-    if (!req.session.user || req.session.user.facility_id != req.params.facilityid) {
-      console.log(req.session.user);
-      console.log(req.session.user.facility_id);
-      console.log(req.params.facilityid);
+    if (!req.session.user || req.session.user.role == 'user' || req.session.user.facility_id != req.params.facilityid) {
       res.status(401).send({
         Message: 'Unauthorized',
         ResultCode: 'ERR_UNAUTHORIZED',
       });
     } else {
-      await models.facility.update(
+      await models.facilities.update(
         {
-          // PK는 반드시 포함해야 어떤 row를 upsert할지 알 수 있음
-          ...req.body, // body에 담긴 변경값만 반영
-          today_meal_url: req.file ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}` : undefined,
-          // 파일이 있는 경우만 반영
+          ...req.body,
         },
         {
           where: {
@@ -116,13 +110,37 @@ async function upsertFacility(req, res) {
           },
         },
       );
+
+      await models.meal.upsert({
+        facility_id: req.params.facilityid,
+        today_meal_desc: req.body.today_meal_desc,
+        breakfast_meal_picture_url: req.files.breakfast_meal_picture_url
+          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.breakfast_meal_picture_url[0].key}`
+          : undefined,
+        lunch_meal_picture_url: req.files.lunch_meal_picture_url
+          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.lunch_meal_picture_url[0].key}`
+          : undefined,
+        dinner_meal_picture_url: req.files.dinner_meal_picture_url
+          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.dinner_meal_picture_url[0].key}`
+          : undefined,
+        week_meal_picture_url: req.files.week_meal_picture_url
+          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.week_meal_picture_url[0].key}`
+          : undefined,
+      });
+
       console.log(req.file);
-      const updatedFacility = await models.facility.findByPk(req.params.facilityid);
+      const updatedFacility = await models.facilities.findByPk(req.params.facilityid);
+      const updatedMeal = await models.meal.findOne({
+        where: {
+          facility_id: req.params.facilityid,
+        },
+      });
       res.send({
         Message: 'Success to facility information updated',
         ResultCode: 'ERR_OK',
         Response: {
           updatedFacility,
+          updatedMeal,
         },
       });
     }

@@ -13,3 +13,4 @@ router.post('/logout', logout);
 //router.post('/checkFacility', checkFacility);
 
 module.exports = router;
+    

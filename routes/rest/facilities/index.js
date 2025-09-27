@@ -25,16 +25,24 @@ const upload = multer({
       console.log(file);
       console.log(ext);
       // 콜백 함수 두 번째 인자에 파일명(경로 포함)을 입력
-      callback(null, `image/today_meal-${Date.now()}_${ext}`);
+      callback(null, `image/meal-${Date.now()}_${ext}`);
     },
   }),
 });
 
-const { getFacility, getFacilities, upsertFacility } = require('./facility');
+const { getFacility, getFacilities, upsertFacility } = require('./facilities');
 
 router.get('/:id', getFacility);
 router.get('/', getFacilities);
-router.post('/:facilityid', upload.single('today_meal_url'), upsertFacility);
+
+const mealUpload = upload.fields([
+  { name: 'breakfast_meal_picture_url', maxCount: 1 },
+  { name: 'lunch_meal_picture_url', maxCount: 1 },
+  { name: 'dinner_meal_picture_url', maxCount: 1 },
+  { name: 'week_meal_picture_url', maxCount: 1 },
+]);
+
+router.post('/:facilityid/dashboard', mealUpload, upsertFacility);
 //router.post('/:facilityid', upsertFacility);
 //router.get('/gps', getFacilities);
 //router.post('/', upload.single('file-front'), upsertFacility);
