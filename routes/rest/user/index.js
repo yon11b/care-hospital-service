@@ -1,4 +1,4 @@
-//User-related routing page (/rest/user*)
+//User-related routing page (/user*)
 
 const express = require('express');
 const router = express.Router();
@@ -13,4 +13,3 @@ router.post('/logout', logout);
 //router.post('/checkFacility', checkFacility);
 
 module.exports = router;
-    

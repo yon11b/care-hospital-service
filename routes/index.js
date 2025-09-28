@@ -2,11 +2,11 @@ var express = require('express');
 var router = express.Router();
 
 //list of REST routing prefixes
-router.use('/rest', require('./rest'));
-router.use('/rest/facilities', require('./rest/facilities'));
-// router.use('/rest/reservation', require('./rest/reservation'));
-// router.use('/rest/review', require('./rest/review'));
-router.use('/rest/user', require('./rest/user'));
-router.use('/rest/voice', require('./rest/voice'));
+router.use('/', require('./rest'));
+router.use('/facilities', require('./rest/facilities'));
+// router.use('/reservation', require('./reservation'));
+// router.use('/review', require('./review'));
+router.use('/user', require('./rest/user'));
+router.use('/voice', require('./rest/voice'));
 
 module.exports = router;

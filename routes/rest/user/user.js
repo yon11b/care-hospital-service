@@ -38,10 +38,10 @@ async function checkFacility(bizNumber, email) {
       const result = resp.data.data[0];
       if (result.b_stt === '계속사업자') {
         const token = generateAdminToken();
-        await models.staff.update({ status: 'verified', facility_token: token }, { where: { email } });
+        await models.staff.update({ approval_status: 'verified', facility_token: token }, { where: { email } });
         return { valid: true, info: result };
       } else {
-        await models.staff.update({ status: 'rejected' }, { where: { email } });
+        await models.staff.update({ approval_status: 'rejected' }, { where: { email } });
         return { valid: false, info: result };
       }
     }
@@ -72,14 +72,14 @@ async function approveFacility(req, res) {
         msg: '해당 유저를 찾을 수 없습니다.',
       });
     }
-    if (staff.status !== 'verified') {
+    if (staff.approval_status !== 'verified') {
       return res.status(400).send({
         result: false,
-        msg: `승인할 수 없는 상태입니다. 현재 상태: ${staff.status}`,
+        msg: `승인할 수 없는 상태입니다. 현재 상태: ${staff.approval_status}`,
       });
     }
     // 승인 처리
-    await models.staff.update({ status: 'approved' }, { where: { email } });
+    await models.staff.update({ approval_status: 'approved' }, { where: { email } });
     res.send({
       result: true,
       msg: '승인 완료',
@@ -107,7 +107,7 @@ async function upsertUser(req, res) {
           name: req.body.name,
           password: sha256(req.body.password),
           email: req.body.email,
-          status: 'pending',
+          approval_status: 'pending',
           role: req.body.role,
           facility_id: req.body.facility_id,
           facility_number: req.body.facility_number,
@@ -125,7 +125,7 @@ async function upsertUser(req, res) {
             name: req.body.name,
             password: sha256(req.body.password),
             email: req.body.email,
-            status: 'approved',
+            approval_status: 'approved',
             role: 'staff',
             facility_id: req.body.facility_id,
           });
@@ -175,7 +175,7 @@ async function login(req, res) {
         email: req.body.email,
         password: String(sha256(req.body.password)),
       },
-      attributes: ['id', 'name', 'email', 'facility_id', 'status', 'role'],
+      attributes: ['id', 'name', 'email', 'facility_id', 'approval_status', 'role'],
     });
 
     if (userinfo) {
