@@ -5,8 +5,8 @@ const router = express.Router();
 
 
 
-// /user/sns/ 라우팅
-router.use('/sns', require('./sns')); 
+// /user/sns/login 라우팅
+router.use('/login', require('./login')); 
 
 
 

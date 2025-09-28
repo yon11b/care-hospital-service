@@ -4,8 +4,9 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const axios = require('axios');
-const models = require('../../models'); // user, user_sns
-const { generateToken, generateRefreshToken } = require('../../middleware/auth');
+const models = require('../../../models'); // user, user_sns
+const { generateToken, generateRefreshToken } = require('../../../middleware/auth');
+const { sequelize } = models; // 트랜잭션 사용
 
 
 // SNS별 설정
@@ -73,13 +74,6 @@ async function getProfile(provider, accessToken) {
     }
 }
 
-// 각 sns callback 라우트
-// 1. 네이버
-router.get('/naver/callback', async (req, res) => handleCallback(req, res, 'naver'));
-//router.get('/kakao/callback', async (req, res) => handleCallback(req, res, 'kakao'));
-//router.get('/google/callback', async (req, res) => handleCallback(req, res, 'google'));
-
-
 // 공통 callback 처리
 // 앱에서 로그인 버튼 클릭 → SNS 인증 → callback URL 호출
 async function handleCallback(req, res, provider) {
@@ -99,28 +93,35 @@ async function handleCallback(req, res, provider) {
         });
 
         let userInstance;
-        if (!snsInstance) {
-            // 신규 회원가입
-            userInstance = await models.user.create({
-                name: profile.name || null,     // 이름(본명)
-                email: profile.email || null,   // 이메일
-                phone: profile.phone || null    // 전화번호
+        await sequelize.transaction(async (t) =>{
+            if (!snsInstance) {
+                // 신규 회원가입
+                userInstance = await models.user.create(
+                    {
+                        name: profile.name || null,     // 이름(본명)
+                        email: profile.email || null,   // 이메일
+                        phone: profile.phone || null    // 전화번호
+                    }, 
+                    {transaction: t}
+            );
 
-            });
-
-            // sns 계정 정보 저장
-            snsInstance = await models.user_sns.create({
-                user_id: userInstance.id,
-                provider,
-                sns_id: profile.id,
-                refresh_token: generateRefreshToken() // refresh token 발급
-            });
-        } else {
-            // 기존 사용자 로그인 -> refresh token 갱신
-            userInstance = snsInstance.user;
-            snsInstance.refresh_token = generateRefreshToken();
-            await snsInstance.save();
-        }
+                // sns 계정 정보 저장
+                snsInstance = await models.user_sns.create(
+                    {
+                        user_id: userInstance.id,
+                        provider,
+                        sns_id: profile.id,
+                        refresh_token: generateRefreshToken() // refresh token 발급
+                    }, 
+                    {transaction: t}
+                );  
+            } else {
+                // 기존 사용자 로그인 -> refresh token 갱신
+                userInstance = snsInstance.user;
+                snsInstance.refresh_token = generateRefreshToken();
+                await snsInstance.save({ transaction: t });
+            }
+        });
 
         // (4) JWT 발급
         const token = generateToken(userInstance);
@@ -130,6 +131,7 @@ async function handleCallback(req, res, provider) {
         // const deepLink = `myapp://login?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(snsInstance.refresh_token)}`;
         // res.redirect(deepLink);
 
+        
         // 현재 모바일 앱 deep link 대신 json으로 응답 -> 테스트용
         // JWT 만료시간 계산
         const decoded = jwt.decode(token);
@@ -151,12 +153,19 @@ async function handleCallback(req, res, provider) {
         });
 
     } catch (err) {
-        console.error(err.response?.data || err);
+        console.error('[SNS Login Error]', err.response?.data || err.message || err);
+        
         res.status(500).json({ 
             message: `${provider} login failed` 
         });
     }
 }
+
+// 각 sns callback 라우트
+// 1. 네이버
+router.get('/naver/callback', async (req, res) => handleCallback(req, res, 'naver'));
+//router.get('/kakao/callback', async (req, res) => handleCallback(req, res, 'kakao'));
+//router.get('/google/callback', async (req, res) => handleCallback(req, res, 'google'));
 
 
 // Refresh token으로 JWT 재발급

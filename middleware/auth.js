@@ -1,3 +1,6 @@
+// jwt 관련 함수 -> jwt 로직 
+// JWT 생성, 검증, 리프레시 토큰 생성 등 핵심 로직만 담당
+
 const jwt = require('jsonwebtoken');
 
 // 개발 환경에서는 fallback으로 'your_jwt_secret' 사용 가능
