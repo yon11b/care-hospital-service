@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
@@ -10,7 +12,6 @@ const session = require('express-session');
 const history = require('connect-history-api-fallback');
 const { Pool } = require('pg');
 const pgSession = require('connect-pg-simple')(session);
-require('dotenv').config();
 const config = require('./config/config.json')[process.env.NODE_ENV || 'development'];
 const viewPath = config.path;
 var app = express();
