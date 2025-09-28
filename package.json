@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/yon11b/care-hospital-service#readme",
   "dependencies": {
+    "aws-sdk": "^2.1300.0",
     "axios": "^1.12.2",
     "compression": "^1.8.1",
     "connect-history-api-fallback": "^2.0.0",
@@ -28,7 +29,10 @@
     "ejs": "^3.1.10",
     "express": "^5.1.0",
     "express-session": "^1.18.2",
+    "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "multer-s3": "^2.10.0",
     "pg": "^8.16.3",
     "sequelize": "^6.37.7",
     "sha256": "^0.2.0",

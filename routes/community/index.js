@@ -1,0 +1,54 @@
+const express = require('express');
+const router = express.Router();
+const multer = require('multer');
+const aws = require('aws-sdk');
+const multerS3 = require('multer-s3');
+const path = require('path');
+const db = require('../../models');
+const config = require('../../config/config.json')[process.env.NODE_ENV || 'development'];
+
+const { authMiddleware } = require('../../middleware/authMiddleware.js');
+
+
+aws.config.update({
+  region: process.env.AWS_S3_REGION,
+  accessKeyId: process.env.AWS_S3_ACCESS_KEY,
+  secretAccessKey: process.env.AWS_S3_SECRET_KEY,
+});
+
+const s3 = new aws.S3();
+const upload = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: process.env.AWS_BUCKET,
+    contentType: multerS3.AUTO_CONTENT_TYPE,
+    key: (req, file, callback) => {
+      //console.log(req.body.today_meal_url);
+      const ext = path.extname(file.originalname);
+      console.log('================');
+      console.log(file);
+      console.log(ext);
+      // 콜백 함수 두 번째 인자에 파일명(경로 포함)을 입력
+      callback(null, `image/community/${req.user.id}-${Date.now()}${ext}`);
+    },
+  }),
+});
+
+
+const { getCommunities, getCommunity, createCommunity, updateCommunity, deleteCommunity } = require('./community');
+
+
+router.get('/', getCommunities); // 전체 글 조회
+router.get('/:id', getCommunity);// 글 하나 조회
+
+const communityUpload = upload.array('images', 4)
+router.post('/', authMiddleware, communityUpload, createCommunity);// 글 작성
+
+// router.post('/posts', authMiddleware, createCommunity );
+// // PATCH /rest/community/posts/{postId}
+// router.patch('/posts/:postId', authMiddleware, updateCommunity);
+// // DELETE /rest/community/posts/{postId}
+// router.delete('/posts/:postId', authMiddleware, deleteCommunity);
+
+
+module.exports = router;

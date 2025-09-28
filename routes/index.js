@@ -1,15 +1,10 @@
-var express = require('express');
-var router = express.Router();
-
-//list of REST routing prefixes
-router.use('/rest', require('./rest'));
-//router.use('/rest/facility', require('./rest/facility'));
-// router.use('/rest/reservation', require('./rest/reservation'));
-// router.use('/rest/review', require('./rest/review'));
-// router.use('/rest/user', require('./rest/user'));
+const express = require('express');
+const models = require('../models');
+const sha256 = require('sha256');
+const router = express.Router();
 
 
-router.use('/rest/community', require('./rest/community'));
-
+// community 라우터로 가라.
+router.use('/community', require('./community')); 
 
 module.exports = router;
