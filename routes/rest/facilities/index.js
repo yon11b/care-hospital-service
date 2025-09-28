@@ -30,20 +30,21 @@ const upload = multer({
   }),
 });
 
-const { getFacility, getFacilities, upsertFacility } = require('./facilities');
+const { getFacility, getFacilities, upsertFacility, upsertNotification } = require('./facilities');
 
 router.get('/:id', getFacility);
 router.get('/', getFacilities);
 
-const mealUpload = upload.fields([
+const uploadMeals = upload.fields([
   { name: 'breakfast_meal_picture_url', maxCount: 1 },
   { name: 'lunch_meal_picture_url', maxCount: 1 },
   { name: 'dinner_meal_picture_url', maxCount: 1 },
   { name: 'week_meal_picture_url', maxCount: 1 },
 ]);
 
-router.post('/:facilityid/dashboard', mealUpload, upsertFacility);
-//router.post('/:facilityid', upsertFacility);
+router.post('/:facilityid/dashboard', uploadMeals, upsertFacility);
+router.post('/:facilityid/dashboard/notices', upload.single('notification_picture_url'), upsertNotification);
+//router.get('/:facilityid/notification/:notyid', getNotification);
 //router.get('/gps', getFacilities);
 //router.post('/', upload.single('file-front'), upsertFacility);
 

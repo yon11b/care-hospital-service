@@ -86,6 +86,43 @@ async function getFacility(req, res) {
   }
 }
 
+async function upsertNotification(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).send({
+      Message: 'Method not allowed',
+      ResultCode: 'ERR_INVALID_DATA',
+    });
+  }
+  try {
+    const [updatednotification] = await models.notification.upsert({
+      id: req.body.notyid,
+      facility_id: req.params.facilityid,
+      ...req.body,
+      picture: req.file ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}` : undefined,
+    });
+    // const updatednotification = await models.notification.findOne({
+    //   where: {
+    //     facility_id: req.params.facilityid,
+    //   },
+    // });
+
+    res.send({
+      Message: 'Success to facility information updated',
+      ResultCode: 'ERR_OK',
+      Response: {
+        updatednotification,
+      },
+    });
+  } catch (err) {
+    // bad request
+    console.log(err);
+    res.status(400).send({
+      result: false,
+      msg: err.toString(),
+    });
+  }
+}
+
 async function upsertFacility(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).send({
@@ -135,6 +172,7 @@ async function upsertFacility(req, res) {
           facility_id: req.params.facilityid,
         },
       });
+
       res.send({
         Message: 'Success to facility information updated',
         ResultCode: 'ERR_OK',
@@ -177,5 +215,6 @@ module.exports = {
   getFacilities,
   getFacility,
   upsertFacility,
+  upsertNotification,
   //   deleteApp,
 };
