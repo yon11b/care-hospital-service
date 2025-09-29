@@ -201,17 +201,104 @@ async function createCommunity(req, res){
 }
 
 // 4. 커뮤니티 특정 글(1개) 수정 -> jwt 필요
-// PATCH /rest/community/:id 
+// PATCH /community/:id 
+async function updateCommunity(req, res) {
+  try{
+    const userId = req.user.id; // jwt를 통해 user_id
+    
+    // 로그인 확인
+    if(!userId){
+        return res.status(401).send({
+        Message: 'Unauthorized - 로그인 필요',
+        ResultCode: 'ERR_UNAUTHORIZED',
+      });
+    }
+
+    const communityId = parseInt(req.params.id, 10); // 경로에서 커뮤니티 글 id
+    const { title, content, removeImages, finalOrder } = req.body; // 제목, 내용, 삭제할 이미지, 이미지 순서
+
+    // FormData 단일 값 보정 -> 배열 변환
+    if (typeof removeImages === 'string') removeImages = [removeImages];
+    if (typeof finalOrder === 'string') finalOrder = [finalOrder];
+
+    // 수정할 글 조회
+    const community = await models.community.findOne({ where: { id: communityId } });
+    if (!community) {
+      return res.status(404).json({
+        Message: '게시글이 존재하지 않습니다.',
+        ResultCode: 'ERR_NOT_FOUND',
+      });
+    } 
+
+    // 작성자 확인
+    if (community.userId !== userId) {
+      return res.status(403).json({
+        Message: 'Forbidden - 본인이 작성한 글만 수정 가능합니다',
+        ResultCode: 'ERR_FORBIDDEN',
+      });
+    }
 
 
-// 3. 커뮤니티 특정 글(1개) 삭제 -> jwt 필요
-// DELETE /rest/community/:id
+    // << 이미지 처리 >> 
+    let imageUrls = Array.isArray(community.images) ? [...community.images] : []; // 기존 이미지
+
+    // 1. 삭제 처리
+    if (Array.isArray(removeImages) && removeImages.length > 0) {
+      imageUrls = imageUrls.filter(url => !removeImages.includes(url));
+    }
+
+    // 2. 새로 업로드된 이미지 추가
+    if (Array.isArray(req.files) && req.files.length > 0) {
+      const uploadedUrls = req.files.map(
+        file => file.location || `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${file.key}`
+      );
+      imageUrls = imageUrls.concat(uploadedUrls); // 기존 + 새 이미지 추가
+    }
+
+    // 3. 순서 변경 (클라이언트에서 최종 순서 배열 전달)
+    // finalOrder = ["url3", "url1", "url2"] 같은 배열
+    if (Array.isArray(finalOrder) && finalOrder.length > 0) {
+      const unique = new Set(finalOrder); // 중복 이미지 X
+      // finalOrder 기준으로 먼저 정렬 + 누락된 이미지들은 뒤에 붙이기
+      imageUrls = [...finalOrder.filter(url => imageUrls.includes(url)),
+                   ...imageUrls.filter(url => !unique.has(url))];
+    }
+
+    // DB 업데이트
+    await community.update({
+      title: title || community.title,
+      content: content || community.content,
+      images: imageUrls,
+    });
+
+    // DB 반영 후 최신 값 가져오기
+    await community.reload();
+
+    // 응답(Response) 보내기
+    return res.status(200).json({
+      Message: '게시글이 성공적으로 수정되었습니다.',
+      ResultCode: 'SUCCESS',
+      Community: community,
+    });
+
+  }catch(err){
+    console.error('updateCommunity error:', err);
+    return res.status(500).json({
+      Message: 'Internal server error',
+      ResultCode: 'ERR_INTERNAL_SERVER',
+      msg: err.message || err.toString(),
+    });
+  }
+}
+
+// 5. 커뮤니티 특정 글(1개) 삭제 -> jwt 필요
+// DELETE /community/:id
 
 
 module.exports = { 
     getCommunities,
     getCommunity, 
     createCommunity,
-    //updateCommunity,
+    updateCommunity,
     //deleteCommunity
 };
