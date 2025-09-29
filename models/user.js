@@ -47,6 +47,8 @@ module.exports = (sequelize, DataTypes) => {
         user.hasMany(models.comments, { foreignKey: 'user_id', sourceKey: 'id' }); 
         // user(사용자) 1 : N user_sns (SNS 계정)
         user.hasMany(models.user_sns, { foreignKey: 'user_id', sourceKey: 'id' });
+        user.hasMany(models.reservation, { foreignKey: 'user_id' });
+
     }; 
     
     return user; 

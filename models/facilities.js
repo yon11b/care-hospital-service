@@ -1,6 +1,7 @@
+// models/facilities.js
 module.exports = (sequelize, DataTypes) => {
-  const facility = sequelize.define(
-    'facility',
+  const facilities = sequelize.define(
+    'facilities',
     {
       kind: {
         type: DataTypes.STRING,
@@ -17,40 +18,45 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         comment: '기관주소',
       },
+      url: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: '기관사이트',
+      },
       telno: {
         type: DataTypes.STRING,
         allowNull: false,
         comment: '기관 전화번호',
       },
-      current_patients: {
+      total_patients_number: {
         type: DataTypes.INTEGER,
         allowNull: false,
         comment: '전체 환자 수',
       },
-      man_patients: {
+      man_patients_number: {
         type: DataTypes.INTEGER,
         allowNull: true,
         comment: '남성 환자 수',
       },
-      woman_patients: {
+      woman_patients_number: {
         type: DataTypes.INTEGER,
         allowNull: false,
         comment: '여성 환자 수',
+      },
+      user_capacity: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: '수용 가능 인원',
       },
       description: {
         type: DataTypes.STRING,
         allowNull: false,
         comment: '병원 설명',
       },
-      status: {
+      approval_status: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: '기관등록승인상태',
-      },
-      url: {
-        type: DataTypes.STRING,
-        allowNull: true,
-        comment: '기관사이트',
       },
       sido_name: {
         type: DataTypes.STRING,
@@ -92,48 +98,46 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: 'y 좌표 위치',
       },
-      primary_code: {
+      care_code: {
         type: DataTypes.STRING,
         allowNull: true,
         comment: '요양기호',
       },
-      user_capacity: {
-        type: DataTypes.INTEGER,
+      facility_number: {
+        type: DataTypes.STRING,
         allowNull: true,
-        comment: '수용 가능 인원',
+        comment: '사업자등록번호',
       },
-      total_manager_count: {
+      total_manager_number: {
         type: DataTypes.INTEGER,
         allowNull: true,
         comment: '전체 복지사 수',
       },
-      today_meal: {
-        type: DataTypes.JSONB,
-        allowNull: true,
-        comment: '오늘의 급식',
-      },
-      today_meal_url: {
-        type: DataTypes.JSONB,
-        allowNull: true,
-        comment: '오늘의 급식 사진',
-      },
     },
     {
-      tableName: 'facility',
+      tableName: 'facilities',
       comment: '기관',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
+    {
+      tableName: 'facilities',
+      timestamps: true,
+      underscored: true,
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+    }
   );
 
-  //Foreign keys
-  // facility.associate = models => {
-  //   facility.hasMany(models.staff, { foreignKey: 'facilityId' });
-  //   facility.hasMany(models.reviews, { foreignKey: 'facilityId' });
-  //   facility.hasMany(models.reservation, { foreignKey: 'facilityId' });
-  //   facility.hasMany(models.consult, { foreignKey: 'facilityId' });
-  //   facility.hasMany(models.likes, { foreignKey: 'facilityId' });
-  // };
+  facilities.associate = (models) => {
+    // 예: 시설 관련 관계
+    // facilities.hasMany(models.meal, { foreignKey: 'facility_id' });
+    // facilities.hasMany(models.notification, { foreignKey: 'facility_id' });
+    // facilities.hasMany(models.staff, { foreignKey: 'facility_id' });
+    // 추가: 1:N - facilities : reviews
+    facilities.hasMany(models.reviews, { foreignKey: 'facility_id', sourceKey: 'id' });
+    facilities.hasMany(models.reservation, { foreignKey: 'facility_id' });
+  };
 
-  return facility;
+  return facilities;
 };

@@ -4,9 +4,8 @@ const sha256 = require('sha256');
 const router = express.Router();
 
 
-// community 라우터로 가라.
 router.use('/community', require('./community')); 
-// user 라우터로 가라.
 router.use('/user', require('./user')); 
+router.use('/reviews', require('./reviews')); 
 
 module.exports = router;
