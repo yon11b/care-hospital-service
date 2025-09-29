@@ -4,6 +4,7 @@ const models = require('../../models');
 const sha256 = require('sha256');
 const app = require('../../app');
 const Sequelize = require('sequelize');
+const AWS = require('aws-sdk');
 
 // 1. 커뮤니티 전체 리스트 조회 
 // 제목, 작성자, 작성일, 댓글수, 이미지, 내용물(3줄정도)
@@ -293,12 +294,86 @@ async function updateCommunity(req, res) {
 
 // 5. 커뮤니티 특정 글(1개) 삭제 -> jwt 필요
 // DELETE /community/:id
+const s3 = new AWS.S3({
+  region: process.env.AWS_S3_REGION,
+  accessKeyId: process.env.AWS_S3_ACCESS_KEY,
+  secretAccessKey: process.env.AWS_S3_SECRET_KEY,
+});
+        
+async function deleteCommunity(req, res) {
+  const t = await models.sequelize.transaction(); // 트랜잭션 시작
 
+  try{
+    const userId = req.user.id; // jwt를 통해 user_id
+    const communityId = parseInt(req.params.id, 10); // 경로에서 커뮤니티 글 id
+
+    if(!userId){ // 로그인 확인
+        return res.status(401).send({
+        Message: 'Unauthorized - 로그인 필요',
+        ResultCode: 'ERR_UNAUTHORIZED',
+      });
+    }
+
+    // 삭제할 글 조회
+    const community = await models.community.findOne({ where: { id: communityId } });
+    if (!community) {
+      return res.status(404).json({
+        Message: '삭제할 게시글이 존재하지 않습니다.',
+        ResultCode: 'ERR_NOT_FOUND',
+      });
+    } 
+
+    // 작성자 확인
+    if (community.userId !== userId) {
+      return res.status(403).json({
+        Message: 'Forbidden - 본인이 작성한 글만 삭제할 수 있습니다.',
+        ResultCode: 'ERR_FORBIDDEN',
+      });
+    }
+
+    
+    // S3 이미지 삭제
+    if (community.images && community.images.length > 0) {
+        const deleteParams = {
+          Bucket: process.env.AWS_BUCKET,
+          Delete: {
+            Objects: community.images.map(url => ({ Key: decodeURIComponent(new URL(url).pathname.slice(1)) })), // 가능하면 Key를 DB에 저장
+          },
+        };
+
+      // 실패 시 글 삭제 롤백
+      console.log('S3 삭제할 객체:', deleteParams.Delete.Objects); // 로그 확인
+      await s3.deleteObjects(deleteParams).promise();
+      console.log('S3 이미지 삭제 완료'); // 성공 시 로그
+    }
+
+    // 글 삭제 (CASCADE로 댓글/신고도 삭제됨)
+    await community.destroy({ transaction: t });
+
+    await t.commit();
+    
+    return res.json({
+      Message: '게시글이 삭제되었습니다.',
+      ResultCode: 'OK',
+      DeletedCommunityId : communityId
+    });
+
+  }catch(err){
+    await t.rollback(); // 트랜잭션 롤백
+    console.error('deleteCommunity error:', err);
+
+    return res.status(500).json({
+      Message: 'Internal server error',
+      ResultCode: 'ERR_INTERNAL_SERVER',
+      msg: err.toString(),
+    });
+  }
+}
 
 module.exports = { 
     getCommunities,
     getCommunity, 
     createCommunity,
     updateCommunity,
-    //deleteCommunity
+    deleteCommunity
 };

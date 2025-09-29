@@ -43,10 +43,8 @@ router.get('/:id', getCommunity);// 글 하나 조회
 
 const communityUpload = upload.array('images', 4)
 router.post('/', authMiddleware, communityUpload, createCommunity);// 글 작성
-
 router.patch('/:id', authMiddleware, communityUpload, updateCommunity); // 글 수정
-// // DELETE /rest/community/posts/{postId}
-// router.delete('/posts/:postId', authMiddleware, deleteCommunity);
+router.delete('/:id', authMiddleware, deleteCommunity); // 글 삭제
 
 
 module.exports = router;

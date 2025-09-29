@@ -41,10 +41,10 @@ module.exports = (sequelize, DataTypes) => {
         comments.belongsTo(models.community, { foreignKey: 'community_id'});
 
         // 부모 댓글(self-referencing)
-        comments.belongsTo(models.comments, { foreignKey: 'parent_id', as: 'parentComment' });
+        comments.belongsTo(models.comments, { foreignKey: 'parent_id', as: 'parentComment', onDelete: 'CASCADE' });
 
         // 대댓글(self-referencing)
-        comments.hasMany(models.comments, { foreignKey: 'parent_id', sourceKey: 'id', as: 'replies' });
+        comments.hasMany(models.comments, { foreignKey: 'parent_id', sourceKey: 'id', as: 'replies', onDelete: 'CASCADE' });
 
     };
 

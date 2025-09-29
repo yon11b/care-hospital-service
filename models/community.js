@@ -34,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
         // Community (1 : N) User 
         community.belongsTo(models.user, { foreignKey: 'user_id'}); 
         // Community (1 : N) comments 
-        community.hasMany(models.comments, { foreignKey: 'community_id', sourceKey: 'id'}); 
+        community.hasMany(models.comments, { foreignKey: 'community_id', sourceKey: 'id', onDelete: 'CASCADE'}); 
     }; 
     
     return community; 
