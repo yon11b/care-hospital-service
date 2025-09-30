@@ -65,6 +65,61 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: "의과 의사 수",
       },
+      hb_resdnt_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "내과 레지던트 수",
+      },
+      hb_sp_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "내과 전문의 수",
+      },
+      hb_gn_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "내과 일반의 수",
+      },
+      hb_intn_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "내과 인턴 수",
+      },
+      dent_gn_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "치과 일반의 수",
+      },
+      dent_resdnt_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "치과 레지던트 수",
+      },
+      dent_sp_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "치과 전문의 수",
+      },
+      medc_resdnt_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "의과 레지던트 수",
+      },
+      medc_gn_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "의과 일반의 수",
+      },
+      medc_intn_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "의과 인턴 수",
+      },
+      medc_sp_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        comment: "의과 전문의 수",
+      },
     },
     {
       tableName: "facility_status",

@@ -27,26 +27,6 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         comment: "기관 전화번호",
       },
-      total_patients_number: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        comment: "전체 환자 수",
-      },
-      man_patients_number: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        comment: "남성 환자 수",
-      },
-      woman_patients_number: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        comment: "여성 환자 수",
-      },
-      user_capacity: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        comment: "수용 가능 인원",
-      },
       description: {
         type: DataTypes.STRING,
         allowNull: false,
@@ -82,11 +62,6 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: "기관설립날짜",
       },
-      total_doctor_count: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        comment: "전체 의사 수",
-      },
       longitude: {
         type: DataTypes.STRING,
         allowNull: true,
@@ -106,11 +81,6 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true,
         comment: "사업자등록번호",
-      },
-      total_manager_number: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        comment: "전체 복지사 수",
       },
     },
     {

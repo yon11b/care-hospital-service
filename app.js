@@ -80,9 +80,9 @@ if (process.env.proxy == "true") {
 }
 
 //DB Sync
-// const sequelize = require('sequelize');
-// const models = require('./models');
-// models.sequelize.sync();
+const sequelize = require("sequelize");
+const models = require("./models");
+models.sequelize.sync();
 
 //error handling
 
