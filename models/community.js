@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true, 
             autoIncrement: true, 
         }, 
-        userId: { 
+        user_id: { 
             type: DataTypes.INTEGER, 
             allowNull: false, 
             field: 'user_id', 
@@ -25,7 +25,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true, 
         }, 
     }, { 
-        tableName: 'community', 
+        tableName: 'communities', 
         timestamps: true, // createdAt, updatedAt
         underscored: true, 
     }); 
@@ -34,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
         // Community (1 : N) User 
         community.belongsTo(models.user, { foreignKey: 'user_id'}); 
         // Community (1 : N) comments 
-        community.hasMany(models.comments, { foreignKey: 'community_id', sourceKey: 'id', onDelete: 'CASCADE'}); 
+        community.hasMany(models.comment, { foreignKey: 'community_id', sourceKey: 'id', onDelete: 'CASCADE'}); 
     }; 
     
     return community; 

@@ -1,7 +1,7 @@
 // models/review.js
 module.exports = (sequelize, DataTypes) => {
-  const reviews = sequelize.define(
-    'reviews',
+  const review = sequelize.define(
+    'review',
     {
       id: {
         type: DataTypes.INTEGER,
@@ -73,20 +73,20 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   // deleted_at 업데이트 시 status 자동 변경
-  reviews.addHook('beforeDestroy', (review) => {
+  review.addHook('beforeDestroy', (review) => {
     review.status = 'DELETED';
   });
 
-  reviews.associate = (models) => {
+  review.associate = (models) => {
     // N:1 - reviews : user
-    reviews.belongsTo(models.user, { foreignKey: 'user_id', targetKey: 'id', onDelete: 'NO ACTION', onUpdate: 'NO ACTION' });
+    review.belongsTo(models.user, { foreignKey: 'user_id', targetKey: 'id', onDelete: 'NO ACTION', onUpdate: 'NO ACTION' });
 
     // N:1 - reviews : facilities
-    reviews.belongsTo(models.facilities, { foreignKey: 'facility_id', targetKey: 'id', onDelete: 'NO ACTION', onUpdate: 'NO ACTION' });
+    review.belongsTo(models.facility, { foreignKey: 'facility_id', targetKey: 'id', onDelete: 'NO ACTION', onUpdate: 'NO ACTION' });
 
     // 1:N - reviews : reports (신고)
-    reviews.hasMany(models.reports, { foreignKey: 'target_id', sourceKey: 'id', scope: { type: 'REVIEW' } });
+    review.hasMany(models.report, { foreignKey: 'target_id', sourceKey: 'id', scope: { type: 'REVIEW' } });
   };
 
-  return reviews;
+  return review;
 };

@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => { 
-    const reports = sequelize.define('reports', { 
+    const report = sequelize.define('report', { 
       id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
@@ -64,13 +64,21 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
     
-    reports.associate = (models) => { 
-        // reports (N : 1) user 
-        reports.belongsTo(models.user, { foreignKey: 'user_id', targetKey: 'id', onDelete: 'SET NULL', onUpdate: 'NO ACTION'}); 
-        // reviews 신고 연동 (1:N)
-        reports.belongsTo(models.reviews, { foreignKey: 'target_id', constraints: false }); 
-    }; 
+  report.addHook('beforeUpdate', (report) => {
+    if (['APPROVED', 'REJECTED'].includes(report.status) && !report.resolved_at) {
+      report.resolved_at = new Date();
+    }
+  });
     
-    return reports; 
+    report.associate = (models) => { 
+        // reports (N : 1) user 
+        report.belongsTo(models.user, { foreignKey: 'user_id', targetKey: 'id', onDelete: 'SET NULL', onUpdate: 'NO ACTION'}); 
+        // reviews 신고 연동 (1:N)
+        report.belongsTo(models.review, { foreignKey: 'target_id', constraints: false, scope: { type: 'REVIEW' } }); 
+        // report.belongsTo(models.community, { foreignKey: 'target_id', constraints: false, scope: { type: 'COMMUNITY' } });
+        // report.belongsTo(models.comment, { foreignKey: 'target_id', constraints: false, scope: { type: 'COMMENT' } });
+      }; 
+    
+    return report; 
 
 };

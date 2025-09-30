@@ -1,18 +1,18 @@
 // 커뮤니티 댓글
 
 module.exports = (sequelize, DataTypes) => {
-    const comments = sequelize.define('comments', {
+    const comment = sequelize.define('comment', {
         id: { 
             type: DataTypes.INTEGER, 
             primaryKey: true, 
             autoIncrement: true 
         },
-        userId: { // 댓글 작성자
+        user_id: { // 댓글 작성자
             type: DataTypes.INTEGER, 
             allowNull: false,
             field: 'user_id',
         },
-        communityId:{ // 게시글 id
+        community_id:{ // 게시글 id
             type: DataTypes.INTEGER,
             allowNull: false,
             field: 'community_id',
@@ -21,7 +21,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT, 
             allowNull: false 
         },
-        parentId:{ // 대댓글 시 부모 댓글
+        parent_id:{ // 대댓글 시 부모 댓글
             type : DataTypes.INTEGER,
             allowNull : true,
             field:'parent_id',
@@ -33,21 +33,21 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     //Foreign keys
-    comments.associate = (models) => {
+    comment.associate = (models) => {
         // 댓글 작성자(user) 1:N 댓글(comments)
-        comments.belongsTo(models.user, { foreignKey: 'user_id'});
+        comment.belongsTo(models.user, { foreignKey: 'user_id'});
 
         // 커뮤니티(community) 1 : N 댓글(comments)
-        comments.belongsTo(models.community, { foreignKey: 'community_id'});
+        comment.belongsTo(models.community, { foreignKey: 'community_id'});
 
         // 부모 댓글(self-referencing)
-        comments.belongsTo(models.comments, { foreignKey: 'parent_id', as: 'parentComment', onDelete: 'CASCADE' });
+        comment.belongsTo(models.comment, { foreignKey: 'parent_id', as: 'parentComment', onDelete: 'CASCADE' });
 
         // 대댓글(self-referencing)
-        comments.hasMany(models.comments, { foreignKey: 'parent_id', sourceKey: 'id', as: 'replies', onDelete: 'CASCADE' });
+        comment.hasMany(models.comment, { foreignKey: 'parent_id', sourceKey: 'id', as: 'replies', onDelete: 'CASCADE' });
 
     };
 
 
-    return comments;
+    return comment;
 };

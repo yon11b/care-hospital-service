@@ -22,11 +22,7 @@ async function getCommunities(req, res) {
     const resp = await models.community.findAll({
       where,
       attributes: [
-        'id', 'title', 'createdAt', 'content',
-
-        // 이미지 배열 중 첫 번째
-        // 이미지 有 "firstImage": "url.jpg", 이미지 無 null 값 반환
-        [models.sequelize.literal(`("images"->>0)`), 'firstImage'],
+        'id', 'title', 'createdAt', 'content', 'images', 
 
         // 총 댓글수
         [Sequelize.literal(`(
@@ -41,7 +37,7 @@ async function getCommunities(req, res) {
           attributes: ['id', 'name']        
         },
       ],
-      order: [['created_at', 'DESC']], // 최신 글 먼저
+      order: [['createdAt', 'DESC']], // 최신 글 먼저
       limit,
     });
 
@@ -85,7 +81,7 @@ async function getCommunity(req, res) {
         [Sequelize.literal(`(
             SELECT COUNT(*)
             FROM "comments" AS c
-            WHERE c.community_id = ${communityId}
+            WHERE c.community_id = "community"."id"
         )`), 'totalComments']  // 댓글 + 대댓글 포함
       ],
       include:[ 
@@ -96,7 +92,7 @@ async function getCommunity(req, res) {
         },
         // 댓글 (대댓글 아님)
         {
-          model: models.comments,
+          model: models.comment,
           attributes : ['id', 'content', 'parent_id', 'created_at'],
           where : { parent_id : null },
           required: false,  // LEFT OUTER JOIN -> 댓글 없는 글 조회 가능
@@ -112,7 +108,7 @@ async function getCommunity(req, res) {
             },
             // 대댓글
             {
-              model:models.comments, 
+              model:models.comment, 
               as:'replies', // self-association alias
               attributes : ['id', 'content', 'created_at'],
               separate: true, // 대댓글도 별도 쿼리
@@ -162,7 +158,7 @@ async function getCommunity(req, res) {
 // 사용자의 user_id -> jwt 토큰을 통해..
 async function createCommunity(req, res){
   try{
-    const userId = req.user.id; 
+    const userId = req.user?.id; 
     const { title, content } = req.body;
 
     // 필수 확인
@@ -179,7 +175,7 @@ async function createCommunity(req, res){
 
     // db 저장
     const community = await models.community.create({
-      userId,
+      user_id : userId,
       title,
       content,
       images: imageUrls, // JSONB 배열 컬럼
@@ -232,7 +228,7 @@ async function updateCommunity(req, res) {
     } 
 
     // 작성자 확인
-    if (community.userId !== userId) {
+    if (community.user_id !== userId) {
       return res.status(403).json({
         Message: 'Forbidden - 본인이 작성한 글만 수정 가능합니다',
         ResultCode: 'ERR_FORBIDDEN',
@@ -324,7 +320,7 @@ async function deleteCommunity(req, res) {
     } 
 
     // 작성자 확인
-    if (community.userId !== userId) {
+    if (community.user_id !== userId) {
       return res.status(403).json({
         Message: 'Forbidden - 본인이 작성한 글만 삭제할 수 있습니다.',
         ResultCode: 'ERR_FORBIDDEN',

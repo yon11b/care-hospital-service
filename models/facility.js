@@ -1,7 +1,7 @@
 // models/facilities.js
 module.exports = (sequelize, DataTypes) => {
-  const facilities = sequelize.define(
-    'facilities',
+  const facility = sequelize.define(
+    'facility',
     {
       kind: {
         type: DataTypes.STRING,
@@ -129,15 +129,15 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
-  facilities.associate = (models) => {
+  facility.associate = (models) => {
     // 예: 시설 관련 관계
     // facilities.hasMany(models.meal, { foreignKey: 'facility_id' });
     // facilities.hasMany(models.notification, { foreignKey: 'facility_id' });
     // facilities.hasMany(models.staff, { foreignKey: 'facility_id' });
     // 추가: 1:N - facilities : reviews
-    facilities.hasMany(models.reviews, { foreignKey: 'facility_id', sourceKey: 'id' });
-    facilities.hasMany(models.reservation, { foreignKey: 'facility_id' });
+    facility.hasMany(models.review, { foreignKey: 'facility_id', sourceKey: 'id' });
+    facility.hasMany(models.reservation, { foreignKey: 'facility_id' });
   };
 
-  return facilities;
+  return facility;
 };
