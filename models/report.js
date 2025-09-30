@@ -15,7 +15,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       user_id: { // 신고자
         type: DataTypes.INTEGER,
-        allowNull: true,
+        allowNull: true, // 삭제식 SET NULL
       },
       category: { // 신고 이유 카테고리
         type: DataTypes.ENUM(
@@ -58,6 +58,7 @@ module.exports = (sequelize, DataTypes) => {
       indexes: [
         {
           unique: true,
+          name: 'unique_user_target',
           fields: ['user_id', 'type', 'target_id'], // 한 유저의 중복 신고 방지
         },
       ],
@@ -75,8 +76,8 @@ module.exports = (sequelize, DataTypes) => {
         report.belongsTo(models.user, { foreignKey: 'user_id', targetKey: 'id', onDelete: 'SET NULL', onUpdate: 'NO ACTION'}); 
         // reviews 신고 연동 (1:N)
         report.belongsTo(models.review, { foreignKey: 'target_id', constraints: false, scope: { type: 'REVIEW' } }); 
-        // report.belongsTo(models.community, { foreignKey: 'target_id', constraints: false, scope: { type: 'COMMUNITY' } });
-        // report.belongsTo(models.comment, { foreignKey: 'target_id', constraints: false, scope: { type: 'COMMENT' } });
+        report.belongsTo(models.community, { foreignKey: 'target_id', constraints: false, scope: { type: 'COMMUNITY' } });
+        report.belongsTo(models.comment, { foreignKey: 'target_id', constraints: false, scope: { type: 'COMMENT' } });
       }; 
     
     return report; 

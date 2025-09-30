@@ -33,7 +33,13 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: 
             true, field: 'currentLocation', // 현재 위치(좌표) 
         }, 
-    },{   
+        role: {
+            type: DataTypes.TEXT,
+            allowNull: false,
+            defaultValue: 'user',
+        },
+    },
+    {   
         tableName: 'users', 
         timestamps: true, 
         underscored: true, // createdAt -> created_at 매핑 
@@ -41,13 +47,13 @@ module.exports = (sequelize, DataTypes) => {
     
     // 다른 테이블과 관계 정의 
     user.associate = (models) => { 
-        // user(사용자) 1 : N community(커뮤니티) 
-        user.hasMany(models.community, { foreignKey: 'user_id' }); 
-        // user(사용자) 1 : N comments (댓글) 
-        user.hasMany(models.comment, { foreignKey: 'user_id', sourceKey: 'id' }); 
-        // user(사용자) 1 : N user_sns (SNS 계정)
-        user.hasMany(models.user_sns, { foreignKey: 'user_id', sourceKey: 'id' });
-        user.hasMany(models.reservation, { foreignKey: 'user_id' });
+        user.hasMany(models.user_sns, { foreignKey: 'user_id', sourceKey: 'id', onDelete: 'CASCADE' });
+        // user (1:N) reservations
+        user.hasMany(models.reservation, { foreignKey: 'user_id', sourceKey: 'id', onDelete: 'NO ACTION' });
+        // user (1:N) reviews
+        user.hasMany(models.review, { foreignKey: 'user_id', sourceKey: 'id', onDelete: 'SET NULL' });
+        // user (1:N) community
+        user.hasMany(models.community, { foreignKey: 'user_id', sourceKey: 'id', onDelete: 'SET NULL' });
     }; 
     
     return user; 

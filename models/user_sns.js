@@ -53,7 +53,11 @@ module.exports = (sequelize, DataTypes) => {
     // associations
     user_sns.associate = (models) => {
         // user(사용자) 1 : N user_sns(sns 계정)
-        user_sns.belongsTo(models.user, { foreignKey: 'user_id' });
+        user_sns.belongsTo(models.user, { 
+            foreignKey: 'user_id',
+            onDelete: 'CASCADE', // DB와 동일
+            onUpdate: 'CASCADE'
+        });
     };
 
     return user_sns;
