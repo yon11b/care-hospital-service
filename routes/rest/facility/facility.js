@@ -1,7 +1,7 @@
-const models = require('../../../models');
-const sha256 = require('sha256');
-const { literal, Op } = require('sequelize');
-const app = require('../../../app');
+const models = require("../../../models");
+const sha256 = require("sha256");
+const { literal, Op } = require("sequelize");
+const app = require("../../../app");
 
 async function getFacilities(req, res) {
   try {
@@ -13,10 +13,10 @@ async function getFacilities(req, res) {
     const name = req.query.name;
 
     //if (latitude && longitude) {
-    const resp = await models.facilities.findAll({
+    const resp = await models.facility.findAll({
       where: {
-        longitude: { [Op.ne]: '' },
-        latitude: { [Op.ne]: '' },
+        longitude: { [Op.ne]: "" },
+        latitude: { [Op.ne]: "" },
         ...(name && { name: { [Op.iLike]: `%${name}%` } }),
       },
       attributes:
@@ -28,20 +28,24 @@ async function getFacilities(req, res) {
                     `ST_DistanceSphere(
                   ST_MakePoint(longitude::double precision, latitude::double precision),
                   ST_MakePoint(${longitude}, ${latitude})
-                )`,
+                )`
                   ),
-                  'distance',
+                  "distance",
                 ],
               ],
             }
           : undefined,
-      order: latitude && longitude ? literal('distance ASC') : [['id', 'ASC']],
+      include: [
+        { model: models.facility_status },
+        { model: models.advertisement },
+      ],
+      order: latitude && longitude ? literal("distance ASC") : [["id", "ASC"]],
       limit,
       offset,
     });
     res.json({
-      Message: 'Facility select successfully.',
-      ResultCode: 'ERR_OK',
+      Message: "Facility select successfully.",
+      ResultCode: "ERR_OK",
       Size: resp.length,
       Response: resp,
     });
@@ -61,11 +65,14 @@ async function getFacility(req, res) {
   try {
     //pid: 받아온 id 파라미터
     const pid = req.params.id;
-    const resp = await models.facilities.findOne({
+    const resp = await models.facility.findOne({
       where: {
         id: pid,
       },
-      include: [],
+      include: [
+        { model: models.facility_status },
+        { model: models.advertisement },
+      ],
       //include: [
       // {
       //   model: models.review,
@@ -87,10 +94,10 @@ async function getFacility(req, res) {
 }
 
 async function upsertNotification(req, res) {
-  if (req.method !== 'POST') {
+  if (req.method !== "POST") {
     return res.status(405).send({
-      Message: 'Method not allowed',
-      ResultCode: 'ERR_INVALID_DATA',
+      Message: "Method not allowed",
+      ResultCode: "ERR_INVALID_DATA",
     });
   }
   try {
@@ -98,7 +105,9 @@ async function upsertNotification(req, res) {
       id: req.body.notyid,
       facility_id: req.params.facilityid,
       ...req.body,
-      picture: req.file ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}` : undefined,
+      picture: req.file
+        ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}`
+        : undefined,
     });
     // const updatednotification = await models.notification.findOne({
     //   where: {
@@ -107,8 +116,8 @@ async function upsertNotification(req, res) {
     // });
 
     res.send({
-      Message: 'Success to facility information updated',
-      ResultCode: 'ERR_OK',
+      Message: "Success to facility information updated",
+      ResultCode: "ERR_OK",
       Response: {
         updatednotification,
       },
@@ -124,20 +133,24 @@ async function upsertNotification(req, res) {
 }
 
 async function upsertFacility(req, res) {
-  if (req.method !== 'POST') {
+  if (req.method !== "POST") {
     return res.status(405).send({
-      Message: 'Method not allowed',
-      ResultCode: 'ERR_INVALID_DATA',
+      Message: "Method not allowed",
+      ResultCode: "ERR_INVALID_DATA",
     });
   }
   try {
-    if (!req.session.user || req.session.user.role == 'user' || req.session.user.facility_id != req.params.facilityid) {
+    if (
+      !req.session.user ||
+      req.session.user.role == "user" ||
+      req.session.user.facility_id != req.params.facilityid
+    ) {
       res.status(401).send({
-        Message: 'Unauthorized',
-        ResultCode: 'ERR_UNAUTHORIZED',
+        Message: "Unauthorized",
+        ResultCode: "ERR_UNAUTHORIZED",
       });
     } else {
-      await models.facilities.update(
+      await models.facility.update(
         {
           ...req.body,
         },
@@ -145,7 +158,7 @@ async function upsertFacility(req, res) {
           where: {
             id: req.params.facilityid,
           },
-        },
+        }
       );
 
       await models.meal.upsert({
@@ -166,7 +179,9 @@ async function upsertFacility(req, res) {
       });
 
       console.log(req.file);
-      const updatedFacility = await models.facilities.findByPk(req.params.facilityid);
+      const updatedFacility = await models.facility.findByPk(
+        req.params.facilityid
+      );
       const updatedMeal = await models.meal.findOne({
         where: {
           facility_id: req.params.facilityid,
@@ -174,8 +189,8 @@ async function upsertFacility(req, res) {
       });
 
       res.send({
-        Message: 'Success to facility information updated',
-        ResultCode: 'ERR_OK',
+        Message: "Success to facility information updated",
+        ResultCode: "ERR_OK",
         Response: {
           updatedFacility,
           updatedMeal,

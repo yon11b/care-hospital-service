@@ -30,7 +30,7 @@ const upload = multer({
   }),
 });
 
-const { getFacility, getFacilities, upsertFacility, upsertNotification } = require('./facilities');
+const { getFacility, getFacilities, upsertFacility, upsertNotification } = require('./facility');
 
 router.get('/:id', getFacility);
 router.get('/', getFacilities);
