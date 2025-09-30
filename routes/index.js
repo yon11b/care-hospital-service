@@ -3,11 +3,11 @@ var router = express.Router();
 
 //list of REST routing prefixes
 router.use("/", require("./rest"));
-router.use("/facilities", require("./rest/facilities"));
+router.use("/facility", require("./rest/facility"));
 // router.use('/reservation', require('./reservation'));
 // router.use('/review', require('./review'));
 router.use("/user", require("./rest/user"));
 router.use("/voice", require("./rest/voice"));
-router.use("/predictDisease", require("./rest/skinAnalysis"));
+router.use("/predictDisease", require("./rest/skin_analysis"));
 
 module.exports = router;

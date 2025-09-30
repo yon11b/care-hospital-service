@@ -1,7 +1,7 @@
 // models/skin_analysis.js
 module.exports = (sequelize, DataTypes) => {
-  const SkinAnalysis = sequelize.define(
-    "SkinAnalysis",
+  const skin_analysis = sequelize.define(
+    "skin_analysis",
     {
       id: {
         type: DataTypes.INTEGER,
@@ -22,13 +22,13 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   //Foreign keys
-  SkinAnalysis.associate = (models) => {
+  skin_analysis.associate = (models) => {
     //   facility.hasMany(models.staff, { foreignKey: 'facilityId' });
     //   facility.hasMany(models.reviews, { foreignKey: 'facilityId' });
     //   facility.hasMany(models.reservation, { foreignKey: 'facilityId' });
     //   facility.hasMany(models.consult, { foreignKey: 'facilityId' });
-    //SkinAnalysis.belongsTo(models.user, { foreignKey: "user_id" });
+    //skin_analysis.belongsTo(models.user, { foreignKey: "user_id" });
   };
 
-  return SkinAnalysis;
+  return skin_analysis;
 };

@@ -1,15 +1,21 @@
 //User-related routing page (/user*)
 
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 
-const { getSession, upsertUser, approveFacility, login, logout } = require('./user');
+const {
+  getSession,
+  upsertUser,
+  approveFacility,
+  login,
+  logout,
+} = require("./user");
 
-router.get('/session', getSession);
-router.post('/', upsertUser);
-router.post('/approveFacility', approveFacility);
-router.post('/login', login);
-router.post('/logout', logout);
+router.get("/session", getSession);
+router.post("/", upsertUser);
+router.post("/approveFacility", approveFacility);
+router.post("/login", login);
+router.post("/logout", logout);
 //router.post('/checkFacility', checkFacility);
 
 module.exports = router;
