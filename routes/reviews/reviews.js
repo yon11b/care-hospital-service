@@ -44,7 +44,7 @@ async function getReviews(req, res) {
 
 
     // 2. 기관 존재 여부 확인
-    const facility = await models.facilities.findByPk(facilityId);
+    const facility = await models.facility.findByPk(facilityId);
     if (!facility) {
       return res.status(404).json({
         Message: 'Facility not found',
@@ -94,7 +94,7 @@ async function getReviews(req, res) {
     }
 
     // 5. 리뷰 조회
-    const review = await models.reviews.findAll({
+    const review = await models.review.findAll({
       where, // 필터 조건
       order, // 정렬
       limit, // 한번에 가져올 개수
@@ -122,7 +122,7 @@ async function getReviews(req, res) {
     res.status(200).json({
       Message: 'Success',
       ResultCode: 'OK',
-      Reviews: review,
+      Reviews: review.map(r => r.get({ plain: true })),
       nextCursor, // 다음 페이지 커서
     });
   } catch (err) {
@@ -151,8 +151,8 @@ async function getReview(req, res) {
     }
 
     // 리뷰 조회 (작성자 정보 포함)
-    const review = await models.reviews.findOne({
-      where: { id: reviewId, facility_id: facilityId },
+    const review = await models.review.findOne({
+      where: { id: reviewId, facility_id: facilityId, status: 'ACTIVE' },
       include: [
         {
           model: models.user,
@@ -216,7 +216,7 @@ async function createReview(req, res){
     // 필수 확인
     if(!content || !rating || !reservationId) {
       return res.status(400).json({
-        message: "필수 항목이 누락되었습니다.",
+        Message: "필수 항목이 누락되었습니다.",
         ResultCode: 'ERR_BAD_REQUEST',
       });
     }
@@ -230,6 +230,7 @@ async function createReview(req, res){
     }
 
     // 리뷰를 등록하고 있는 예약 조회
+    // reservation status 고려하기
     const reservation = await models.reservation.findOne({
     where: { id: reservationId, user_id: userId, facility_id: facilityId },
     });
@@ -249,7 +250,7 @@ async function createReview(req, res){
     const imageUrls = Array.isArray(req.files) ? req.files.map(file => file.location) : [];
 
     // db 저장
-    const review = await models.reviews.create({
+    const review = await models.review.create({
       user_id: userId,
       facility_id: facilityId,
       content,
@@ -313,7 +314,7 @@ async function updateReview(req, res) {
     }   
 
     // 수정할 글 조회
-    const review = await models.reviews.findOne({ where: { id: reviewId } });
+    const review = await models.review.findOne({ where: { id: reviewId } });
     if (!review ) {
       return res.status(404).json({
         Message: '리뷰가 존재하지 않습니다.',
@@ -404,8 +405,8 @@ async function deleteReview(req, res) {
       });
     }
 
-    // 삭제할 글 조회
-    const review = await models.reviews.findOne({ where: { id: reviewId } });
+    // 삭제할 리뷰 조회
+    const review = await models.review.findOne({ where: { id: reviewId } });
     if (!review) {
       return res.status(404).json({
         Message: '삭제할 리뷰가 존재하지 않습니다.',
@@ -422,7 +423,7 @@ async function deleteReview(req, res) {
     }
 
     
-    // S3 이미지 삭제
+    // S3 이미지 삭제 (실패해도 무시)
     if (review.images && review.images.length > 0) {
         const deleteParams = {
           Bucket: process.env.AWS_BUCKET,
@@ -431,27 +432,23 @@ async function deleteReview(req, res) {
           },
         };
 
-      // 실패 시 리뷰 삭제 롤백
-      console.log('S3 삭제할 객체:', deleteParams.Delete.Objects); // 로그 확인
-      try { 
-        await s3.deleteObjects(deleteParams).promise(); 
-      } catch(err) { 
-        return res.status(500).json({ 
-            Message: 'S3 삭제 실패', 
-            ResultCode: 'ERR_S3_DELETE', 
-            msg: err.toString() 
-        }); 
-      }      
-      console.log('S3 이미지 삭제 완료'); // 성공 시 로그
+      // 이미지 실패해도 리뷰는 삭제 처리 됨
+      try {
+        await s3.deleteObjects(deleteParams).promise();
+        console.log('S3 이미지 삭제 완료');
+      } catch (err) {
+        console.error('S3 삭제 실패:', err);
+      }
     }
 
     // 리뷰 삭제 -> await review.destroy({ transaction: t });
     // Soft delete으로 함
-    // 신고 내역 때문에 실제 삭제가 아니라 status: DELETED로 처리
-    await review.update({ 
-        status: 'DELETED', 
-        deleted_at: new Date() 
-    }, { transaction: t });
+    // 신고 내역/통계 페이지의 신고 횟수 때문에 
+    // 실제 삭제가 아니라 status: DELETED로 처리
+    await review.update(
+      { status: 'DELETED', deleted_at: new Date() }, 
+      { transaction: t }
+    );
     
     await t.commit();
     
@@ -474,10 +471,103 @@ async function deleteReview(req, res) {
   }
 }
 
+// 리뷰 신고하기
+// /review/:reviewId/report
+async function reportReview(req, res) {
+  try{
+    const userId = req.user.id; // JWT를 통해 user_id
+    const { reviewId } = req.params;
+    const { category, reason } = req.body;
+    
+    // 1. 로그인 확인
+    if(!userId){
+      return res.status(401).json({
+        Message: 'Unauthorized - 로그인 필요',
+        ResultCode: 'ERR_UNAUTHORIZED',
+      });
+    }
+
+    // 2. 필수 파라미터 체크
+    if (!reviewId || !category) {
+      return res.status(400).json({
+        Message: '필수 항목이 누락되었습니다.',
+        ResultCode: 'ERR_BAD_REQUEST',
+      });
+    }
+
+    // 3. category 체크
+    const validCategories = [
+      'DUPLICATE_SPAM',
+      'AD_PROMOTION',
+      'ABUSE_HATE',
+      'PRIVACY_LEAK',
+      'SEXUAL_CONTENT',
+      'ETC'
+    ];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({
+        Message: 'Invalid category',
+        ResultCode: 'ERR_INVALID_CATEGORY',
+      });
+    }
+
+    // 4. 리뷰 존재 여부 확인
+    const review = await models.review.findOne({
+      where: { id: reviewId, status: 'ACTIVE' }
+    });
+    if (!review) {
+      return res.status(404).json({
+        Message: '신고 대상(리뷰)가 존재하지 않습니다.',
+        ResultCode: 'ERR_NOT_FOUND',
+      });
+    }
+
+    // 5. 중복 신고 확인
+    const existingReport = await models.report.findOne({
+      where: { 
+        user_id: userId, 
+        type: 'REVIEW', 
+        target_id: reviewId }
+    });
+    if (existingReport) {
+      return res.status(409).json({
+        Message: '이미 신고한 리뷰입니다.',
+        ResultCode: 'ERR_DUPLICATE_REPORT',
+      });
+    }
+
+    // 6. 신고 생성
+    const report = await models.report.create({
+      user_id: userId,
+      type: 'REVIEW',
+      target_id: reviewId,
+      category,
+      reason,
+    });
+
+    // 7. 응답
+    return res.status(201).json({
+      Message: '리뷰 신고가 접수되었습니다.',
+      ResultCode: 'SUCCESS',
+      Report: report.get({ plain: true })
+    });
+
+  }catch(err){
+    console.error('reportReview error:', err);
+
+    return res.status(500).json({
+      Message: 'Internal server error',
+      ResultCode: 'ERR_INTERNAL_SERVER',
+      msg: err.toString(),
+    });
+  }
+}
+
 module.exports = { 
     getReviews,
     getReview, 
     createReview,
     updateReview,
-    deleteReview
+    deleteReview,
+    reportReview
 };

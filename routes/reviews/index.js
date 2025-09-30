@@ -35,7 +35,7 @@ const upload = multer({
 });
 
 
-const { getReviews, getReview, createReview, updateReview, deleteReview } = require('./reviews');
+const { getReviews, getReview, createReview, updateReview, deleteReview, reportReview } = require('./reviews');
 
 
 
@@ -46,6 +46,6 @@ const reviewsUpload = upload.array('images', 4)
 router.post('/:facilityId', authMiddleware, reviewsUpload, createReview);// 리뷰 작성
 router.patch('/:facilityId/:reviewId', authMiddleware, reviewsUpload, updateReview); // 리뷰 수정
 router.delete('/:facilityId/:reviewId', authMiddleware, deleteReview); // 리뷰 삭제
-
+router.post('/:reviewId/report', authMiddleware, reportReview); // 리뷰 신고
 
 module.exports = router;
