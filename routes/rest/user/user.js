@@ -15,7 +15,7 @@ async function getSession(req, res) {
       user: req.session.user,
     });
   } else {
-    res.status(404).send({
+    res.status(403).send({
       result: false,
     });
   }

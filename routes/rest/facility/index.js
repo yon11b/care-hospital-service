@@ -1,9 +1,9 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const multer = require('multer');
-const aws = require('aws-sdk');
-const multerS3 = require('multer-s3');
-const path = require('path');
+const multer = require("multer");
+const aws = require("aws-sdk");
+const multerS3 = require("multer-s3");
+const path = require("path");
 //require('dotenv').config();
 
 aws.config.update({
@@ -21,31 +21,37 @@ const upload = multer({
     key: (req, file, callback) => {
       //console.log(req.body.today_meal_url);
       const ext = path.extname(file.originalname);
-      console.log('================');
-      console.log(file);
-      console.log(ext);
-      // 콜백 함수 두 번째 인자에 파일명(경로 포함)을 입력
       callback(null, `image/meal-${Date.now()}_${ext}`);
     },
   }),
 });
+const {
+  getFacility,
+  getFacilities,
+  upsertFacility,
+  upsertNotice,
+  deleteNotice,
+  getNotice,
+  getNotices,
+} = require("./facility");
 
-const { getFacility, getFacilities, upsertFacility, upsertNotification } = require('./facility');
-
-router.get('/:id', getFacility);
-router.get('/', getFacilities);
-
+router.get("/:id", getFacility);
+router.get("/", getFacilities);
 const uploadMeals = upload.fields([
-  { name: 'breakfast_meal_picture_url', maxCount: 1 },
-  { name: 'lunch_meal_picture_url', maxCount: 1 },
-  { name: 'dinner_meal_picture_url', maxCount: 1 },
-  { name: 'week_meal_picture_url', maxCount: 1 },
+  { name: "breakfast_meal_picture_url", maxCount: 1 },
+  { name: "lunch_meal_picture_url", maxCount: 1 },
+  { name: "dinner_meal_picture_url", maxCount: 1 },
+  { name: "week_meal_picture_url", maxCount: 1 },
 ]);
+router.post("/:facilityid/dashboard", uploadMeals, upsertFacility);
 
-router.post('/:facilityid/dashboard', uploadMeals, upsertFacility);
-router.post('/:facilityid/dashboard/notices', upload.single('notification_picture_url'), upsertNotification);
-//router.get('/:facilityid/notification/:notyid', getNotification);
-//router.get('/gps', getFacilities);
-//router.post('/', upload.single('file-front'), upsertFacility);
+router.get("/:facilityid/dashboard/notices/:notyid", getNotice);
+router.get("/:facilityid/dashboard/notices", getNotices);
+router.post(
+  "/:facilityid/dashboard/notices",
+  upload.single("notification_picture_url"),
+  upsertNotice
+);
+router.delete("/:facilityid/dashboard/notices/:notyid", deleteNotice);
 
 module.exports = router;

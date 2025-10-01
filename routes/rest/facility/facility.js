@@ -10,14 +10,14 @@ async function getFacilities(req, res) {
     const offset = (page - 1) * limit;
     const latitude = parseFloat(req.query.latitude);
     const longitude = parseFloat(req.query.longitude);
-    const name = req.query.name;
+    const keyword = req.query.keyword;
 
     //if (latitude && longitude) {
     const resp = await models.facility.findAll({
       where: {
         longitude: { [Op.ne]: "" },
         latitude: { [Op.ne]: "" },
-        ...(name && { name: { [Op.iLike]: `%${name}%` } }),
+        ...(keyword && { name: { [Op.iLike]: `%${keyword}%` } }),
       },
       attributes:
         latitude && longitude
@@ -92,42 +92,76 @@ async function getFacility(req, res) {
     });
   }
 }
-
-async function upsertNotification(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).send({
-      Message: "Method not allowed",
-      ResultCode: "ERR_INVALID_DATA",
-    });
-  }
+async function upsertNotice(req, res) {
   try {
-    const [updatednotification] = await models.notification.upsert({
-      id: req.body.notyid,
-      facility_id: req.params.facilityid,
-      ...req.body,
-      picture: req.file
-        ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}`
-        : undefined,
-    });
-    // const updatednotification = await models.notification.findOne({
-    //   where: {
-    //     facility_id: req.params.facilityid,
-    //   },
-    // });
+    // 메소드 검사
+    if (req.method !== "POST") {
+      return res.status(405).send({
+        Message: "Method not allowed",
+        ResultCode: "ERR_INVALID_DATA",
+      });
+    }
 
-    res.send({
-      Message: "Success to facility information updated",
+    // 세션 검사
+    if (!req.session || !req.session.user) {
+      return res.status(401).send({
+        Message: "Forbidden - 로그인이 필요합니다.",
+        ResultCode: "ERR_UNAUTHORIZED",
+      });
+    }
+
+    if (req.session.user.facility_id != req.params.facilityid) {
+      return res.status(403).send({
+        Message: "Forbidden - 접근 권한이 없습니다.",
+        ResultCode: "ERR_FORBIDDEN",
+      });
+    }
+
+    let updatedNotice;
+
+    if (req.body.notyid) {
+      // UPDATE
+      const [affectedCount, rows] = await models.notice.update(
+        {
+          facility_id: req.params.facilityid,
+          ...req.body,
+          picture: req.file
+            ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}`
+            : undefined,
+        },
+        {
+          where: { id: req.body.notyid },
+          returning: true, // Postgres에서만 지원
+        }
+      );
+
+      if (affectedCount === 0) {
+        return res.status(404).send({
+          Message: "notice not found",
+          ResultCode: "ERR_NOT_FOUND",
+        });
+      }
+      updatedNotice = rows[0];
+    } else {
+      updatedNotice = await models.notice.create({
+        facility_id: req.params.facilityid,
+        ...req.body,
+        picture: req.file
+          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}`
+          : undefined,
+      });
+    }
+    return res.status(200).send({
+      Message: "notice upsert successfully",
       ResultCode: "ERR_OK",
-      Response: {
-        updatednotification,
-      },
+      Response: updatedNotice,
     });
-  } catch (err) {
-    // bad request
-    console.log(err);
-    res.status(400).send({
-      result: false,
-      msg: err.toString(),
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({
+      Message: error.message || "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      error,
     });
   }
 }
@@ -206,30 +240,99 @@ async function upsertFacility(req, res) {
     });
   }
 }
+async function deleteNotice(req, res) {
+  try {
+    await models.notice.destroy({
+      where: {
+        id: req.params.notyid,
+      },
+    });
 
-// async function deleteApp(req, res) {
-//   try {
-//     await models.application.destroy({
-//       where: {
-//         id: req.params.id,
-//       },
-//     });
+    res.send({ result: true });
+  } catch (err) {
+    //bad request
+    console.log(err);
+    res.status(400).send({
+      result: false,
+      msg: err.toString(),
+    });
+  }
+}
 
-//     res.send({ result: true });
-//   } catch (err) {
-//     //bad request
-//     console.log(err);
-//     res.status(400).send({
-//       result: false,
-//       msg: err.toString(),
-//     });
-//   }
-// }
+async function getNotice(req, res) {
+  try {
+    //pid: 받아온 id 파라미터
+    const notyid = req.params.notyid;
+    const resp = await models.notice.findOne({
+      where: {
+        id: notyid,
+      },
+    });
+
+    if (!resp) {
+      return res.status(404).json({
+        Message: "notice not found",
+        ResultCode: "ERR_NOT_FOUND",
+        status: "404",
+      });
+    }
+
+    res.json({
+      Message: "notice select successfully.",
+      ResultCode: "ERR_OK",
+      Response: resp,
+    });
+  } catch (err) {
+    //bad request
+    console.log(err);
+    res.status(400).send({
+      result: false,
+      msg: err.toString(),
+    });
+  }
+}
+async function getNotices(req, res) {
+  try {
+    const page = parseInt(req.query.page) || 1; // 기본 1페이지
+    const limit = parseInt(req.query.limit) || 20; // 기본 20개
+    const offset = (page - 1) * limit;
+    const { keyword } = req.query;
+
+    const resp = await models.notice.findAll({
+      where: keyword
+        ? {
+            [Op.or]: [
+              { title: { [Op.iLike]: `%${keyword}%` } },
+              { content: { [Op.iLike]: `%${keyword}%` } },
+            ],
+          }
+        : {},
+      order: [["created_at", "DESC"]],
+      limit,
+      offset,
+    });
+    res.json({
+      Message: "Notifications select successfully.",
+      ResultCode: "ERR_OK",
+      Size: resp.length,
+      Response: resp,
+    });
+  } catch (err) {
+    //bad request
+    console.log(err);
+    res.status(400).send({
+      result: false,
+      msg: err.toString(),
+    });
+  }
+}
 
 module.exports = {
   getFacilities,
   getFacility,
   upsertFacility,
-  upsertNotification,
-  //   deleteApp,
+  upsertNotice,
+  deleteNotice,
+  getNotices,
+  getNotice
 };
