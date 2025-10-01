@@ -166,6 +166,70 @@ async function upsertNotice(req, res) {
   }
 }
 
+async function getMeals(req, res) {
+  try {
+    const meals = await models.meal.findOne({
+      where: {
+        facility_id: req.params.facilityid,
+      },
+    });
+    return res.status(200).send({
+      Message: "meals select successfully",
+      ResultCode: "ERR_OK",
+      Response: meals,
+    });
+  } catch (err) {
+    // bad request
+    console.log(err);
+    res.status(400).send({
+      result: false,
+      msg: err.toString(),
+    });
+  }
+}
+
+async function upsertMeal(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).send({
+      Message: "Method not allowed",
+      ResultCode: "ERR_INVALID_DATA",
+    });
+  }
+  try {
+    const updatedMeal = await models.meal.upsert({
+      facility_id: req.params.facilityid,
+      today_meal_desc: req.body.today_meal_desc,
+      meal_date: mealDate,
+      breakfast_meal_picture_url: req.files.breakfast_meal_picture_url
+        ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.breakfast_meal_picture_url[0].key}`
+        : undefined,
+      lunch_meal_picture_url: req.files.lunch_meal_picture_url
+        ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.lunch_meal_picture_url[0].key}`
+        : undefined,
+      dinner_meal_picture_url: req.files.dinner_meal_picture_url
+        ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.dinner_meal_picture_url[0].key}`
+        : undefined,
+      week_meal_picture_url: req.files.week_meal_picture_url
+        ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.week_meal_picture_url[0].key}`
+        : undefined,
+    });
+    res.send({
+      Message: "Success to meal information updated",
+      ResultCode: "ERR_OK",
+      Response: {
+        updatedMeal,
+      },
+    });
+  } catch (err) {
+    // bad request
+    console.log(err);
+    res.status(400).send({
+      result: false,
+      msg: err.toString(),
+    });
+  }
+}
+
 async function upsertFacility(req, res) {
   if (req.method !== "POST") {
     return res.status(405).send({
@@ -184,7 +248,7 @@ async function upsertFacility(req, res) {
         ResultCode: "ERR_UNAUTHORIZED",
       });
     } else {
-      await models.facility.update(
+      const updatedFacility = await models.facility.update(
         {
           ...req.body,
         },
@@ -195,39 +259,13 @@ async function upsertFacility(req, res) {
         }
       );
 
-      await models.meal.upsert({
-        facility_id: req.params.facilityid,
-        today_meal_desc: req.body.today_meal_desc,
-        breakfast_meal_picture_url: req.files.breakfast_meal_picture_url
-          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.breakfast_meal_picture_url[0].key}`
-          : undefined,
-        lunch_meal_picture_url: req.files.lunch_meal_picture_url
-          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.lunch_meal_picture_url[0].key}`
-          : undefined,
-        dinner_meal_picture_url: req.files.dinner_meal_picture_url
-          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.dinner_meal_picture_url[0].key}`
-          : undefined,
-        week_meal_picture_url: req.files.week_meal_picture_url
-          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.week_meal_picture_url[0].key}`
-          : undefined,
-      });
-
       console.log(req.file);
-      const updatedFacility = await models.facility.findByPk(
-        req.params.facilityid
-      );
-      const updatedMeal = await models.meal.findOne({
-        where: {
-          facility_id: req.params.facilityid,
-        },
-      });
 
       res.send({
         Message: "Success to facility information updated",
         ResultCode: "ERR_OK",
         Response: {
           updatedFacility,
-          updatedMeal,
         },
       });
     }
@@ -330,9 +368,11 @@ async function getNotices(req, res) {
 module.exports = {
   getFacilities,
   getFacility,
+  upsertMeal,
   upsertFacility,
   upsertNotice,
   deleteNotice,
   getNotices,
-  getNotice
+  getNotice,
+  getMeals,
 };

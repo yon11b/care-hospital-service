@@ -29,6 +29,8 @@ const {
   getFacility,
   getFacilities,
   upsertFacility,
+  upsertMeal,
+  getMeals,
   upsertNotice,
   deleteNotice,
   getNotice,
@@ -43,7 +45,9 @@ const uploadMeals = upload.fields([
   { name: "dinner_meal_picture_url", maxCount: 1 },
   { name: "week_meal_picture_url", maxCount: 1 },
 ]);
-router.post("/:facilityid/dashboard", uploadMeals, upsertFacility);
+router.post("/:facilityid/dashboard", upsertFacility);
+router.post("/:facilityid/dashboard/meals", uploadMeals, upsertMeal);
+router.get("/:facilityid/meals", getMeals);
 
 router.get("/:facilityid/dashboard/notices/:notyid", getNotice);
 router.get("/:facilityid/dashboard/notices", getNotices);

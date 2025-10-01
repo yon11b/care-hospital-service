@@ -1,5 +1,5 @@
-const fs = require('fs');
-const axios = require('axios');
+const fs = require("fs");
+const axios = require("axios");
 
 async function transcribeService(audioFile) {
   try {
@@ -9,14 +9,14 @@ async function transcribeService(audioFile) {
     const url = `https://naveropenapi.apigw.ntruss.com/recog/v1/stt?lang=Kor`;
     const response = await axios.post(url, audioFile, {
       headers: {
-        'x-ncp-apigw-api-key-id': client_id,
-        'x-ncp-apigw-api-key': secret_key,
-        'Content-Type': 'application/octet-stream',
+        "x-ncp-apigw-api-key-id": client_id,
+        "x-ncp-apigw-api-key": secret_key,
+        "Content-Type": "application/octet-stream",
       },
     });
     return response.data;
   } catch (err) {
-    console.error('텍스트로 변환 실패', err.response?.data || err.message);
+    console.error("텍스트로 변환 실패", err.response?.data || err.message);
     return { valid: false, error: err.response?.data || err.message };
   }
 }
@@ -29,7 +29,7 @@ async function transcribe(req, res) {
     res.json({ text });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Transcription failed', msg: err.message });
+    res.status(500).json({ error: "Transcription failed", msg: err.message });
   }
 }
 module.exports = {

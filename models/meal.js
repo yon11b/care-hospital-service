@@ -2,6 +2,11 @@ module.exports = (sequelize, DataTypes) => {
   const meal = sequelize.define(
     "meal",
     {
+      facility_id: {
+        type: DataTypes.BIGINT,
+        allowNull: false,
+        primaryKey: true, // 여기서 PK로 지정
+      },
       today_meal_desc: {
         type: DataTypes.JSONB,
         allowNull: true,
@@ -26,6 +31,11 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING,
         allowNull: true,
         comment: "이번주 급식 사진",
+      },
+      meal_date: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        comment: "오늘의 날짜(급식의 날짜)",
       },
     },
     {
