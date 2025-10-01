@@ -29,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
     {
-      tableName: "meal",
+      tableName: "meals",
       comment: "급식",
       createdAt: "created_at",
       updatedAt: "updated_at",

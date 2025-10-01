@@ -114,7 +114,7 @@ async function upsertNotification(req, res) {
 
     if (req.body.notyid) {
       // UPDATE
-      const [affectedCount, rows] = await models.notification.update(
+      const [affectedCount, rows] = await models.notice.update(
         {
           facility_id: req.params.facilityid,
           ...req.body,
@@ -130,13 +130,13 @@ async function upsertNotification(req, res) {
 
       if (affectedCount === 0) {
         return res.status(404).send({
-          Message: "Notification not found",
+          Message: "notice not found",
           ResultCode: "ERR_NOT_FOUND",
         });
       }
       updatedNotification = rows[0];
     } else {
-      updatedNotification = await models.notification.create({
+      updatedNotification = await models.notice.create({
         facility_id: req.params.facilityid,
         ...req.body,
         picture: req.file
@@ -145,7 +145,7 @@ async function upsertNotification(req, res) {
       });
     }
     return res.status(200).send({
-      Message: "Notification upsert successfully",
+      Message: "notice upsert successfully",
       ResultCode: "ERR_OK",
       Response: updatedNotification,
     });
@@ -236,7 +236,7 @@ async function upsertFacility(req, res) {
 
 async function deleteNotification(req, res) {
   try {
-    await models.notification.destroy({
+    await models.notice.destroy({
       where: {
         id: req.params.notyid,
       },
@@ -257,7 +257,7 @@ async function getNotification(req, res) {
   try {
     //pid: 받아온 id 파라미터
     const notyid = req.params.notyid;
-    const resp = await models.notification.findOne({
+    const resp = await models.notice.findOne({
       where: {
         id: notyid,
       },
@@ -265,14 +265,14 @@ async function getNotification(req, res) {
 
     if (!resp) {
       return res.status(404).json({
-        Message: "Notification not found",
+        Message: "notice not found",
         ResultCode: "ERR_NOT_FOUND",
         status: "404",
       });
     }
 
     res.json({
-      Message: "Notification select successfully.",
+      Message: "notice select successfully.",
       ResultCode: "ERR_OK",
       Response: resp,
     });
@@ -292,7 +292,7 @@ async function getNotifications(req, res) {
     const offset = (page - 1) * limit;
     const { keyword } = req.query;
 
-    const resp = await models.notification.findAll({
+    const resp = await models.notice.findAll({
       where: keyword
         ? {
             [Op.or]: [

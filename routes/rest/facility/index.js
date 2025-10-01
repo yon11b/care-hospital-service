@@ -58,7 +58,7 @@ router.post(
   upsertNotification
 );
 router.delete("/:facilityid/dashboard/notices/:notyid", deleteNotification);
-//router.get('/:facilityid/notification/:notyid', getNotification);
+//router.get('/:facilityid/notice/:notyid', getNotification);
 //router.get('/gps', getFacilities);
 //router.post('/', upload.single('file-front'), upsertFacility);
 

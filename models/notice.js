@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
-  const notification = sequelize.define(
-    "notification",
+  const notice = sequelize.define(
+    "notice",
     {
       title: {
         type: DataTypes.STRING,
@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
       },
     },
     {
-      tableName: "notification",
+      tableName: "notices",
       comment: "공지사항",
       createdAt: "created_at",
       updatedAt: "updated_at",
@@ -27,13 +27,13 @@ module.exports = (sequelize, DataTypes) => {
   );
 
   //Foreign keys
-  notification.associate = (models) => {
+  notice.associate = (models) => {
     //   facility.hasMany(models.staff, { foreignKey: 'facilityId' });
     //   facility.hasMany(models.reviews, { foreignKey: 'facilityId' });
     //   facility.hasMany(models.reservation, { foreignKey: 'facilityId' });
     //   facility.hasMany(models.consult, { foreignKey: 'facilityId' });
-    notification.belongsTo(models.facility, { foreignKey: "facility_id" });
+    notice.belongsTo(models.facility, { foreignKey: "facility_id" });
   };
 
-  return notification;
+  return notice;
 };
