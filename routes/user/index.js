@@ -1,13 +1,22 @@
-// routes/rest/user/index.js
-const express = require('express');
+//User-related routing page (/user*)
+
+const express = require("express");
 const router = express.Router();
 
+const {
+  getSession,
+  upsertUser,
+  approveFacility,
+  login,
+  logout,
+} = require("./user");
 
-
-
-// /user/sns/ 라우팅
+router.get("/session", getSession);
+router.post("/", upsertUser);
+router.post("/approveFacility", approveFacility);
+router.post("/login", login);
+router.post("/logout", logout);
+//router.post('/checkFacility', checkFacility);
 router.use('/sns', require('./sns')); 
-
-
 
 module.exports = router;

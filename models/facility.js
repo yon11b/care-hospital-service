@@ -94,14 +94,15 @@ module.exports = (sequelize, DataTypes) => {
 
   //Foreign keys
   facility.associate = (models) => {
-    // facility.hasMany(models.meal, { foreignKey: "facility_id" });
-    // facility.hasMany(models.staff, { foreignKey: "facility_id" });
-    // facility.hasOne(models.facility_status, { foreignKey: "facility_id" });
-    // facility.hasOne(models.advertisement, { foreignKey: "facility_id" });
-    // facility.hasMany(models.notice, { foreignKey: "facility_id" });
+    facility.hasMany(models.meal, { foreignKey: "facility_id" });
+    facility.hasMany(models.staff, { foreignKey: "facility_id" });
+    facility.hasOne(models.facility_status, { foreignKey: "facility_id" });
+    facility.hasOne(models.advertisement, { foreignKey: "facility_id" });
+    facility.hasMany(models.notice, { foreignKey: "facility_id" });
+
     facility.hasMany(models.review, { foreignKey: 'facility_id', sourceKey: 'id' });
     facility.hasMany(models.reservation, { foreignKey: 'facility_id' });
- 
+  
   };
 
   return facility;

@@ -1,12 +1,17 @@
-const express = require('express');
-const models = require('../models');
-const sha256 = require('sha256');
-const router = express.Router();
+var express = require("express");
+const models = require("../models");
+var router = express.Router();
 
+//list of REST routing prefixes
+//router.use("/", require("./"));
+router.use("/facilities", require("./facility"));
+// router.use('/reservation', require('./reservation'));
+// router.use('/review', require('./review'));
+router.use("/user", require("./user"));
+router.use("/voice", require("./voice"));
+router.use("/predictDisease", require("./skin_analysis"));
 
-// community 라우터로 가라.
 router.use('/community', require('./community')); 
-// user 라우터로 가라.
 router.use('/user', require('./user')); 
 
 module.exports = router;
