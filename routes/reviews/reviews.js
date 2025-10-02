@@ -53,7 +53,10 @@ async function getReviews(req, res) {
     }
 
     // 3. 기본 조회 조건
-    const where = { facility_id: facilityId, status: 'ACTIVE' };
+    const where = { 
+      facility_id: facilityId, 
+      status: {[Op.in]: ['ACTION', 'REPORT_PENDING']}  
+    };
     let order; // 정렬 기준
 
     // 4. 정렬 기준에 따른 order와 cursor 처리
@@ -95,7 +98,7 @@ async function getReviews(req, res) {
 
     // 5. 리뷰 조회
     const review = await models.review.findAll({
-      where, // 필터 조건
+      where, // 필터 조건 (해당 기관, action, report_pending 리뷰들.)
       order, // 정렬
       limit, // 한번에 가져올 개수
       attributes: ['id', 'user_id', 'content', 'images', 'rating', 'visited', 'created_at'],
@@ -107,14 +110,16 @@ async function getReviews(req, res) {
 
     // 6. 다음 cursor 계산
     let nextCursor = null;
-    if (review.length) {
+    if (Array.isArray(review) && review.length > 0) {
       const last = review[review.length - 1]; // 마지막 리뷰 기준
-      
-      if (sort === 'latest') { // 최신순: 마지막 created_at
-        nextCursor = last.created_at.toISOString(); 
-      } 
-      else if (sort === 'rating') { // 평점순 중 created_at 비교
-        nextCursor = `${last.rating}_${last.created_at.toISOString()}`;
+
+      if (last && last.created_at) {
+        if (sort === 'latest') { // 최신순: 마지막 created_at
+          nextCursor = last.created_at.toISOString(); 
+        } 
+        else if (sort === 'rating') { // 평점순 중 created_at 비교
+          nextCursor = `${last.rating}_${last.created_at.toISOString()}`;
+        }
       }
     }
 
@@ -140,10 +145,11 @@ async function getReviews(req, res) {
 async function getReview(req, res) {
   try{
     // 경로 파라미터에서 id 가져오기
-    const { facilityId, reviewId } = req.params;
-    
-    // 필수 파라미터 확인
-    if (!facilityId || !reviewId) {
+    const facilityId = parseInt(req.params.facilityId, 10);
+    const reviewId= parseInt(req.params.reviewId, 10);
+
+    // 파라미터 확인
+    if (isNaN(facilityId) || isNaN(reviewId)) {
       return res.status(400).json({
         Message: "Invalid parameters",
         ResultCode: "ERR_INVALID_PARAMS",
@@ -152,7 +158,11 @@ async function getReview(req, res) {
 
     // 리뷰 조회 (작성자 정보 포함)
     const review = await models.review.findOne({
-      where: { id: reviewId, facility_id: facilityId, status: 'ACTIVE' },
+      where: { 
+        id: reviewId, 
+        facility_id: facilityId, 
+        status: {[Op.in]: ['ACTION', 'REPORT_PENDING']}  
+      },
       include: [
         {
           model: models.user,
@@ -194,7 +204,7 @@ async function getReview(req, res) {
 async function createReview(req, res){
   try{
     const userId = req.user.id; 
-    const { facilityId } = req.params; // 경로에서 가져오기
+    const facilityId = parseInt(req.params.facilityId, 10);
     const { content, rating , reservationId} = req.body;
 
 
@@ -206,15 +216,15 @@ async function createReview(req, res){
       });
     }
 
-    if (!facilityId) {
+    if (isNaN(facilityId)) {
         return res.status(400).json({
-            Message: "Invalid hospital ID",
+            Message: "Invalid facility ID",
             ResultCode: "ERR_INVALID_ID"
         });
     }
 
     // 필수 확인
-    if(!content || !rating || !reservationId) {
+    if(!content ||  rating == null) {
       return res.status(400).json({
         Message: "필수 항목이 누락되었습니다.",
         ResultCode: 'ERR_BAD_REQUEST',
@@ -229,22 +239,25 @@ async function createReview(req, res){
       });
     }
 
-    // 리뷰를 등록하고 있는 예약 조회
-    // reservation status 고려하기
-    const reservation = await models.reservation.findOne({
-    where: { id: reservationId, user_id: userId, facility_id: facilityId },
-    });
+    // 방문 인증 - 예약 정보 확인
+    // 방문 예약을 했고 reservation status가 CONFIRMED이면
+    // 방문 인증 마크를 준다.
+    let visited = false;
+    if (reservationId) {
+      const reservation = await models.reservation.findOne({
+        where: { 
+          id: reservationId, 
+          user_id: userId, 
+          facility_id: facilityId,
+          status :  'CONFIRMED',
+        },
+      });
 
-    if(!reservation){
-        return res.status(404).json({ 
-            Message: '예약이 존재하지 않음', 
-            ResultCode: 'ERR_NOT_FOUND' 
-        });
-    }
-
-    // 방문 여부 판단
-    const visited = new Date(reservation.reservation_time) < new Date();
-
+      if (reservation  && reservation.reservation_time) {
+        visited = new Date(reservation.reservation_time) < new Date();
+      }
+    }    
+      
     // 업로드된 파일들에서 s3 url 뽑기
     // req.files 는 배열 형태 (upload.array)
     const imageUrls = Array.isArray(req.files) ? req.files.map(file => file.location) : [];
@@ -291,15 +304,25 @@ async function updateReview(req, res) {
       });
     }
 
-    const { facilityId, reviewId } = req.params; // 경로에서..
+    // 경로 파라미터에서 id 가져오기
+    const facilityId = parseInt(req.params.facilityId, 10);
+    const reviewId= parseInt(req.params.reviewId, 10);
     const { content, rating, removeImages, finalOrder } = req.body; // 제목, 내용, 삭제할 이미지, 이미지 순서
+    
+    // 파라미터 확인
+    if (isNaN(facilityId) || isNaN(reviewId)) {
+      return res.status(400).json({
+        Message: "Invalid parameters",
+        ResultCode: "ERR_INVALID_PARAMS",
+      });
+    }
 
     // FormData 단일 값 보정 -> 배열 변환
     if (typeof removeImages === 'string') removeImages = [removeImages];
     if (typeof finalOrder === 'string') finalOrder = [finalOrder];
 
     // 필수 항목 체크
-    if (!content || !rating) {
+    if (!content || rating == null) {
         return res.status(400).json({
             Message: "필수 항목(내용, 평점)이 없습니다",
             ResultCode: "ERR_EMPTY_CONTENT"
@@ -314,7 +337,12 @@ async function updateReview(req, res) {
     }   
 
     // 수정할 글 조회
-    const review = await models.review.findOne({ where: { id: reviewId } });
+    const review = await models.review.findOne({ 
+      where: { 
+        id: reviewId ,
+        status: {[Op.in]: ['ACTION', 'REPORT_PENDING']}
+      } 
+    });
     if (!review ) {
       return res.status(404).json({
         Message: '리뷰가 존재하지 않습니다.',
@@ -352,14 +380,15 @@ async function updateReview(req, res) {
     if (Array.isArray(finalOrder) && finalOrder.length > 0) {
       const unique = new Set(finalOrder); // 중복 이미지 X
       // finalOrder 기준으로 먼저 정렬 + 누락된 이미지들은 뒤에 붙이기
-      imageUrls = [...finalOrder.filter(url => imageUrls.includes(url)),
-                   ...imageUrls.filter(url => !unique.has(url))];
+      imageUrls = [
+        ...finalOrder.filter(url => imageUrls.includes(url)),
+        ...imageUrls.filter(url => !unique.has(url))];
     }
 
     // DB 업데이트
     await review.update({
-      content: content || review.content,
-      rating : rating || review.rating,
+      content: content,
+      rating: rating,
       images: imageUrls,
     });
 
@@ -392,11 +421,10 @@ const s3 = new AWS.S3({
 });
         
 async function deleteReview(req, res) {
-  const t = await models.sequelize.transaction(); // 트랜잭션 시작
-
   try{
     const userId = req.user.id; // jwt를 통해 user_id
-    const { facilityId, reviewId } = req.params; // 경로에서..
+    const facilityId = parseInt(req.params.facilityId, 10);
+    const reviewId= parseInt(req.params.reviewId, 10);
 
     if(!userId){ // 로그인 확인
         return res.status(401).send({
@@ -404,9 +432,23 @@ async function deleteReview(req, res) {
         ResultCode: 'ERR_UNAUTHORIZED',
       });
     }
+    
+    // 파라미터 확인
+    if (isNaN(facilityId) || isNaN(reviewId)) {
+      return res.status(400).json({
+        Message: "Invalid parameters",
+        ResultCode: "ERR_INVALID_PARAMS",
+      });
+    }
 
     // 삭제할 리뷰 조회
-    const review = await models.review.findOne({ where: { id: reviewId } });
+    const review = await models.review.findOne({ 
+      where: { 
+        id: reviewId ,
+        facility_id: facilityId, 
+        status: {[Op.in]: ['ACTION', 'REPORT_PENDING']}
+      } 
+    });
     if (!review) {
       return res.status(404).json({
         Message: '삭제할 리뷰가 존재하지 않습니다.',
@@ -424,11 +466,12 @@ async function deleteReview(req, res) {
 
     
     // S3 이미지 삭제 (실패해도 무시)
-    if (review.images && review.images.length > 0) {
+    if (Array.isArray(review.images) && review.images.length > 0) {
         const deleteParams = {
           Bucket: process.env.AWS_BUCKET,
           Delete: {
-            Objects: review.images.map(url => ({ Key: decodeURIComponent(new URL(url).pathname.slice(1)) })), // 가능하면 Key를 DB에 저장
+            Objects: review.images.map(url => ({ 
+              Key: decodeURIComponent(new URL(url).pathname.slice(1)) })), // 가능하면 Key를 DB에 저장
           },
         };
 
@@ -441,16 +484,13 @@ async function deleteReview(req, res) {
       }
     }
 
-    // 리뷰 삭제 -> await review.destroy({ transaction: t });
+    // 리뷰 삭제 
     // Soft delete으로 함
     // 신고 내역/통계 페이지의 신고 횟수 때문에 
     // 실제 삭제가 아니라 status: DELETED로 처리
     await review.update(
       { status: 'DELETED', deleted_at: new Date() }, 
-      { transaction: t }
     );
-    
-    await t.commit();
     
     // 응답 보내기
     return res.json({
@@ -460,7 +500,6 @@ async function deleteReview(req, res) {
     });
 
   }catch(err){
-    await t.rollback(); // 트랜잭션 롤백
     console.error('deleteReview error:', err);
 
     return res.status(500).json({
@@ -471,97 +510,6 @@ async function deleteReview(req, res) {
   }
 }
 
-// 리뷰 신고하기
-// /review/:reviewId/report
-async function reportReview(req, res) {
-  try{
-    const userId = req.user.id; // JWT를 통해 user_id
-    const { reviewId } = req.params;
-    const { category, reason } = req.body;
-    
-    // 1. 로그인 확인
-    if(!userId){
-      return res.status(401).json({
-        Message: 'Unauthorized - 로그인 필요',
-        ResultCode: 'ERR_UNAUTHORIZED',
-      });
-    }
-
-    // 2. 필수 파라미터 체크
-    if (!reviewId || !category) {
-      return res.status(400).json({
-        Message: '필수 항목이 누락되었습니다.',
-        ResultCode: 'ERR_BAD_REQUEST',
-      });
-    }
-
-    // 3. category 체크
-    const validCategories = [
-      'DUPLICATE_SPAM',
-      'AD_PROMOTION',
-      'ABUSE_HATE',
-      'PRIVACY_LEAK',
-      'SEXUAL_CONTENT',
-      'ETC'
-    ];
-    if (!validCategories.includes(category)) {
-      return res.status(400).json({
-        Message: 'Invalid category',
-        ResultCode: 'ERR_INVALID_CATEGORY',
-      });
-    }
-
-    // 4. 리뷰 존재 여부 확인
-    const review = await models.review.findOne({
-      where: { id: reviewId, status: 'ACTIVE' }
-    });
-    if (!review) {
-      return res.status(404).json({
-        Message: '신고 대상(리뷰)가 존재하지 않습니다.',
-        ResultCode: 'ERR_NOT_FOUND',
-      });
-    }
-
-    // 5. 중복 신고 확인
-    const existingReport = await models.report.findOne({
-      where: { 
-        user_id: userId, 
-        type: 'REVIEW', 
-        target_id: reviewId }
-    });
-    if (existingReport) {
-      return res.status(409).json({
-        Message: '이미 신고한 리뷰입니다.',
-        ResultCode: 'ERR_DUPLICATE_REPORT',
-      });
-    }
-
-    // 6. 신고 생성
-    const report = await models.report.create({
-      user_id: userId,
-      type: 'REVIEW',
-      target_id: reviewId,
-      category,
-      reason,
-    });
-
-    // 7. 응답
-    return res.status(201).json({
-      Message: '리뷰 신고가 접수되었습니다.',
-      ResultCode: 'SUCCESS',
-      Report: report.get({ plain: true })
-    });
-
-  }catch(err){
-    console.error('reportReview error:', err);
-
-    return res.status(500).json({
-      Message: 'Internal server error',
-      ResultCode: 'ERR_INTERNAL_SERVER',
-      msg: err.toString(),
-    });
-  }
-}
 
 module.exports = { 
     getReviews,

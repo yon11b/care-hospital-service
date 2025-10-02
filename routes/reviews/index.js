@@ -35,7 +35,14 @@ const upload = multer({
 });
 
 
-const { getReviews, getReview, createReview, updateReview, deleteReview, reportReview } = require('./reviews');
+const { 
+  getReviews, 
+  getReview, 
+  createReview, 
+  updateReview, 
+  deleteReview, 
+  reportReview 
+} = require('./reviews');
 
 
 
