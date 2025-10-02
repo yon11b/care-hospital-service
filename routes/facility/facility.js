@@ -1,7 +1,7 @@
-const models = require("../../../models");
+const models = require("../../models");
 const sha256 = require("sha256");
 const { literal, Op } = require("sequelize");
-const app = require("../../../app");
+const app = require("../../app");
 
 async function getFacilities(req, res) {
   try {

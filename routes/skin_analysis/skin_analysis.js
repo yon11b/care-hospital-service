@@ -1,4 +1,4 @@
-const models = require("../../../models");
+const models = require("../../models");
 const session = require("express-session");
 const sha256 = require("sha256");
 const axios = require("axios");
