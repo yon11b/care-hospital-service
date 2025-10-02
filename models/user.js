@@ -14,11 +14,7 @@ module.exports = (sequelize, DataTypes) => {
         email: { 
             type: DataTypes.STRING, 
             allowNull: true, 
-        }, 
-        password: { 
-            type: DataTypes.STRING, 
-            allowNull: true, 
-        }, 
+        },  
         phone: { 
             type: DataTypes.STRING, 
             allowNull: true, 
@@ -30,23 +26,33 @@ module.exports = (sequelize, DataTypes) => {
         }, 
         currentLocation: { 
             type: DataTypes.STRING, 
-            allowNull: 
-            true, field: 'currentLocation', // 현재 위치(좌표) 
+            allowNull: true,
+            field: 'currentLocation', // 현재 위치(좌표) 
         }, 
-    },{   
-        tableName: 'user', 
+        status: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: 'normal', // normal / blacklist
+            comment: '차단된 사용자 구분하기~ normal / blacklist',
+        },             
+    },
+    {   
+        tableName: 'users', 
         timestamps: true, 
         underscored: true, // createdAt -> created_at 매핑 
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
     }); 
     
     // 다른 테이블과 관계 정의 
     user.associate = (models) => { 
-        // user(사용자) 1 : N community(커뮤니티) 
-        user.hasMany(models.community, { foreignKey: 'user_id' }); 
-        // user(사용자) 1 : N comments (댓글) 
-        user.hasMany(models.comments, { foreignKey: 'user_id', sourceKey: 'id' }); 
-        // user(사용자) 1 : N user_sns (SNS 계정)
-        user.hasMany(models.user_sns, { foreignKey: 'user_id', sourceKey: 'id' });
+        user.hasMany(models.user_sns, { foreignKey: 'user_id', sourceKey: 'id', onDelete: 'CASCADE' });
+        // user (1:N) reservations
+        user.hasMany(models.reservation, { foreignKey: 'user_id', sourceKey: 'id', onDelete: 'NO ACTION' });
+        // user (1:N) reviews
+        user.hasMany(models.review, { foreignKey: 'user_id', sourceKey: 'id', onDelete: 'SET NULL' });
+        // user (1:N) community
+        user.hasMany(models.community, { foreignKey: 'user_id', sourceKey: 'id', onDelete: 'SET NULL' });
     }; 
     
     return user; 
