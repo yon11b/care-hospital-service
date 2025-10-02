@@ -685,15 +685,240 @@ async function deleteComment(req, res) {
   }
 }
 
+// ======================
+// 신고 기능 (커뮤니티, 댓글)
+// ======================
+
+// 커뮤니티 신고하기
+// /community/{communityId}/report
+async function reportCommunity(req, res) {
+  try{
+    const userId = req.user?.id; // JWT를 통해 user_id    
+    const communityId = parseInt(req.params.communityId, 10); // 경로에서 커뮤니티 글 id
+    const { category, reason } = req.body;
+    
+    // 1. 로그인 확인
+    if(!userId){
+      return res.status(401).json({
+        Message: 'Unauthorized - 로그인 필요',
+        ResultCode: 'ERR_UNAUTHORIZED',
+      });
+    }
+
+    // 2. 필수 파라미터 체크
+    if (isNaN(communityId) || !category) {
+      return res.status(400).json({
+        Message: '필수 항목이 누락되었습니다.',
+        ResultCode: 'ERR_BAD_REQUEST',
+      });
+    }
+
+    // 3. category 체크
+    const validCategories = [
+      'DUPLICATE_SPAM',
+      'AD_PROMOTION',
+      'ABUSE_HATE',
+      'PRIVACY_LEAK',
+      'SEXUAL_CONTENT',
+      'ETC'
+    ];
+
+    const upperCategory = category.toUpperCase(); // 대문자 처리하기
+    if (!validCategories.includes(upperCategory)) {
+      return res.status(400).json({
+        Message: 'Invalid category',
+        ResultCode: 'ERR_INVALID_CATEGORY',
+      });
+    }
+
+    // 4. 커뮤니티 글 존재 여부 확인
+    const community = await models.community.findOne({
+      where: { 
+        id: communityId, 
+        status: { [Op.in]: ['ACTION', 'REPORT_PENDING'] } 
+      } 
+    });
+    if (!community) {
+      return res.status(404).json({
+        Message: '신고 대상(커뮤니티)가 존재하지 않습니다.',
+        ResultCode: 'ERR_NOT_FOUND',
+      });
+    }
+
+    // 5. 중복 신고 확인
+    const existingReport = await models.report.findOne({
+      where: { 
+        user_id: userId, 
+        type: 'COMMUNITY', 
+        target_id: communityId }
+    });
+    if (existingReport) {
+      return res.status(409).json({
+        Message: '이미 신고한 커뮤니티 글 입니다.',
+        ResultCode: 'ERR_DUPLICATE_REPORT',
+      });
+    }
+
+      // 6. 신고 생성
+    const  report = await models.report.create({
+        user_id: userId,
+        type: 'COMMUNITY',
+        target_id: communityId,
+        category : upperCategory,
+        reason,
+      }
+    );
+
+    // 7. 커뮤니티 상태 변경 (신고됨) -> 댓글/대댓글은 그대로 둠
+    await community.update({ status: 'REPORT_PENDING' });
+
+    // 8. 응답
+    return res.status(201).json({      
+      Message: '커뮤니티 글 신고가 접수되었습니다.',
+      ResultCode: 'SUCCESS',
+      Report: report.get({ plain: true })
+    });
+
+  }catch(err){
+    console.error('reportCommunity error:', err);
+
+    return res.status(500).json({
+      Message: 'Internal server error',
+      ResultCode: 'ERR_INTERNAL_SERVER',
+      msg: err.toString(),
+    });
+  }
+}
+
+
+// 댓글 신고하기
+// POST /community/:communityId/comment/:commentId/report
+async function reportComment(req, res) {
+  try {
+    const userId = req.user.id; // JWT에서 추출
+    const { communityId, commentId } = req.params;
+    const { category, reason } = req.body;
+
+    // 1. 로그인 확인
+    if (!userId) {
+      return res.status(401).json({
+        Message: 'Unauthorized - 로그인 필요',
+        ResultCode: 'ERR_UNAUTHORIZED',
+      });
+    }
+
+    // 2. 필수 파라미터 체크
+    if (!communityId || !commentId || !category) {
+      return res.status(400).json({
+        Message: '필수 항목이 누락되었습니다.',
+        ResultCode: 'ERR_BAD_REQUEST',
+      });
+    }
+
+    // 3. category 체크
+    const validCategories = [
+      'DUPLICATE_SPAM',
+      'AD_PROMOTION',
+      'ABUSE_HATE',
+      'PRIVACY_LEAK',
+      'SEXUAL_CONTENT',
+      'ETC'
+    ];
+
+    const upperCategory = category.toUpperCase(); // 대문자 처리하기
+    if (!validCategories.includes(upperCategory)) {
+      return res.status(400).json({
+        Message: 'Invalid category',
+        ResultCode: 'ERR_INVALID_CATEGORY',
+      });
+    }
+
+    // 4. 커뮤니티 존재 여부 확인
+    const community = await models.community.findOne({
+      where: { 
+        id: communityId, 
+        status: {[Op.in]: ['ACTION', 'REPORT_PENDING']} 
+      }
+    });
+    if (!community) {
+      return res.status(404).json({
+        Message: '신고 대상 커뮤니티 글이 존재하지 않습니다.',
+        ResultCode: 'ERR_NOT_FOUND',
+      });
+    }
+
+    // 5. 댓글 존재 여부 확인
+    const comment = await models.comment.findOne({
+      where: { 
+        id: commentId, 
+        community_id: communityId, 
+        status: {[Op.in]: ['ACTION', 'REPORT_PENDING']}
+      }
+    });
+    if (!comment) {
+      return res.status(404).json({
+        Message: '신고 대상 댓글이 존재하지 않습니다.',
+        ResultCode: 'ERR_NOT_FOUND',
+      });
+    }
+
+    // 6. 중복 신고 확인
+    const existingReport = await models.report.findOne({
+      where: { 
+        user_id: userId,
+        type: 'COMMENT',
+        target_id: commentId,
+      }
+    });
+    if (existingReport) {
+      return res.status(409).json({
+        Message: '이미 신고한 댓글입니다.',
+        ResultCode: 'ERR_DUPLICATE_REPORT',
+      });
+    }
+
+    // 7. 신고 생성
+    const report = await models.report.create({
+      user_id: userId,
+      type: 'COMMENT',
+      target_id: commentId,
+      category : upperCategory,
+      reason,
+    });
+
+    // 8. 댓글 상태 변경 (신고됨 -> 검토 대기 상태)
+    await models.comment.update(
+      { status: 'REPORT_PENDING' },
+      { where: { id: commentId } } // 신고된 댓글만 상태 변경
+    );
+
+    // 9. 응답
+    return res.status(201).json({
+      Message: '댓글 신고가 접수되었습니다.',
+      ResultCode: 'SUCCESS',
+      Report: report.get({ plain: true })
+    });
+
+  } catch (err) {
+    console.error('reportComment error:', err);
+    return res.status(500).json({
+      Message: 'Internal server error',
+      ResultCode: 'ERR_INTERNAL_SERVER',
+      msg: err.toString(),
+    });
+  }
+}
+
+
 module.exports = { 
     getCommunities,
     getCommunity, 
     createCommunity,
     updateCommunity,
     deleteCommunity,
-
+    reportCommunity,
     createComment,
     updateComment,
     deleteComment,
-    
+    reportComment
 };
