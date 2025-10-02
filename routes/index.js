@@ -13,5 +13,6 @@ router.use("/predictDisease", require("./skin_analysis"));
 
 router.use('/community', require('./community')); 
 router.use('/user', require('./user')); 
+router.use('/reviews', require('./reviews')); 
 
 module.exports = router;
