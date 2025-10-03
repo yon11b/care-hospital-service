@@ -14,10 +14,9 @@ const { authMiddleware } = require('../../middleware/authMiddleware.js');
 
 
 const {
-    createReservation,
-} = require("./facility");
+  createReservation,
+} = require("./reservation");
 
-router.post('/:facilityid/reservation', authMiddleware, createReservation); // 예약하기
-
+router.post('/:facilityId/reservation', authMiddleware, createReservation); // 예약하기
 
 module.exports = router;

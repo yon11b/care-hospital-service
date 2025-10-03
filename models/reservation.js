@@ -1,5 +1,3 @@
-// 게시글 커뮤니티
-
 module.exports = (sequelize, DataTypes) => { 
     const reservation = sequelize.define('reservation', { 
         id: {
@@ -14,10 +12,6 @@ module.exports = (sequelize, DataTypes) => {
         user_id: {
             type: DataTypes.INTEGER,
             allowNull: false,
-        },
-        patient_type: {
-            type: DataTypes.ENUM('SELF', 'GUARDIAN'), // patient_type_enum (본인 / 보호자)
-            allowNull: true,
         },
         patient_name: {
             type: DataTypes.STRING(100),
@@ -56,18 +50,12 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.TEXT,
             allowNull: true,
         },
-        created_at: {
-            type: DataTypes.DATE,
-            defaultValue: DataTypes.NOW,
-        },
-        updated_at: {
-            type: DataTypes.DATE,
-            defaultValue: DataTypes.NOW,
-        },
     }, {
         tableName: 'reservations',
         timestamps: true,
         underscored: true,
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',        
     });
     
     reservation.associate = (models) => { 

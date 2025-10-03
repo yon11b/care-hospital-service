@@ -14,11 +14,7 @@ module.exports = (sequelize, DataTypes) => {
         email: { 
             type: DataTypes.STRING, 
             allowNull: true, 
-        }, 
-        password: { 
-            type: DataTypes.STRING, 
-            allowNull: true, 
-        }, 
+        },  
         phone: { 
             type: DataTypes.STRING, 
             allowNull: true, 
@@ -30,19 +26,22 @@ module.exports = (sequelize, DataTypes) => {
         }, 
         currentLocation: { 
             type: DataTypes.STRING, 
-            allowNull: 
-            true, field: 'currentLocation', // 현재 위치(좌표) 
+            allowNull: true,
+            field: 'currentLocation', // 현재 위치(좌표) 
         }, 
-        role: {
-            type: DataTypes.TEXT,
-            allowNull: false,
-            defaultValue: 'user',
-        },
+        status: {
+            type: DataTypes.STRING,
+            allowNull: true,
+            defaultValue: 'normal', // normal / blacklist
+            comment: '차단된 사용자 구분하기~ normal / blacklist',
+        },             
     },
     {   
         tableName: 'users', 
         timestamps: true, 
         underscored: true, // createdAt -> created_at 매핑 
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
     }); 
     
     // 다른 테이블과 관계 정의 
