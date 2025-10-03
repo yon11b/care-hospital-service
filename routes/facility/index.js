@@ -15,8 +15,13 @@ const { authMiddleware } = require('../../middleware/authMiddleware.js');
 
 const {
   createReservation,
+  getReservations,
+  getReservationDetail,
+  cancelReservation
 } = require("./reservation");
 
 router.post('/:facilityId/reservation', authMiddleware, createReservation); // 예약하기
-
+router.get('/reservation', authMiddleware, getReservations); // 예약 전체 조회
+router.get('/reservation/:reservationId', authMiddleware, getReservationDetail); // 예약 상세 조회
+router.patch('/reservation/:reservationId', authMiddleware, cancelReservation); // 예약 상세 조회
 module.exports = router;
