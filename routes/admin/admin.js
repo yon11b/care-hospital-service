@@ -282,13 +282,10 @@ async function handleReportRejected(req, res) {
   }
 }
 
-
-
-
-
 module.exports = { 
     getReports,
     getReportDetail,
     handleReportApproved,
-    handleReportRejected
+    handleReportRejected,
+
 };
