@@ -1,40 +1,12 @@
-const stringSimilarity = require("string-similarity");
-const app = require("../../app");
-const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-
+const models = require("../../models");
+const stringSimilarity = require("string-similarity");
 const speech = require("@google-cloud/speech");
 
 const client = new speech.SpeechClient();
-async function quickstart(audioFile) {
-  // The path to the remote LINEAR16 file stored in Google Cloud Storage
-  //const gcsUri = "gs://cloud-samples-data/speech/brooklyn_bridge.raw";
 
-  const audio = {
-    content: fs.readFileSync(audioFile).toString("base64"),
-  };
-  // The audio file's encoding, sample rate in hertz, and BCP-47 language code
-
-  const config = {
-    encoding: "MP3",
-    sampleRateHertz: 16000,
-    languageCode: "ko-KR",
-  };
-  const request = {
-    audio: audio,
-    config: config,
-  };
-
-  // Detects speech in the audio file
-  const [response] = await client.recognize(request);
-  const transcription = response.results
-    .map((result) => result.alternatives[0].transcript)
-    .join("\n");
-  console.log(`Transcription: ${transcription}`);
-  return transcription;
-}
-
+// ---------- 공통 상수 ----------
 const MONTH_TO_SEASON = {
   1: "겨울",
   2: "겨울",
@@ -60,88 +32,24 @@ const WEEKDAYS = [
   "일요일",
 ];
 
-/**
- * MMSE 시간 지남력 채점
- * @param {Object} answers - 환자 답변
- *  {
- *    year: 2025,
- *    month: 10
- *    season: "봄",
- *    day: 4,
- *    weekday: "금요일",
- *  }
- * @param {Date} baseDate - 기준 날짜 (시험일)
- * @returns {Object} {score, details: {year:true/false, season:true/false,...}}
- */
-async function gradeTimeOrientation(req, res) {
-  const { answers } = req.body;
-  const baseDate = new Date();
-  const details = {};
+// ---------- 공통 함수 ----------
 
-  // 1️⃣ 연도
-  const yearAnswer = Number(answers.year);
-  details.year = yearAnswer === baseDate.getFullYear();
-
-  // 2️⃣ 계절
-  const month = baseDate.getMonth() + 1; // JS는 0~11월
-  const correctSeason = MONTH_TO_SEASON[month];
-  details.season = false;
-
-  if (answers.season) {
-    const seasonAnswer = answers.season.trim();
-    // 허용: 간절기 ±1 계절 허용
-    const monthOffset = [month - 1, month, month + 1].map((m) =>
-      m <= 0 ? m + 12 : m > 12 ? m - 12 : m
-    );
-    for (const m of monthOffset) {
-      if (MONTH_TO_SEASON[m] === seasonAnswer) {
-        details.season = true;
-        break;
-      }
-    }
-  }
-  details.month = Number(answers.month) === month;
-  details.day = Number(answers.day) === baseDate.getDate();
-  const correctWeekday =
-    WEEKDAYS[baseDate.getDay() === 0 ? 6 : baseDate.getDay() - 1]; // JS: 0=일요일
-  details.weekday = answers.weekday === correctWeekday;
-
-  const score = Object.values(details).filter((v) => v === true).length;
-  return res.json({
-    score,
-    details,
-  });
+// 1. audio buffer → STT 결과 반환
+async function getSTTResultFromBuffer(buffer, filename = "tempfile.bin") {
+  const audioFile = path.join(__dirname, filename);
+  await fs.promises.writeFile(audioFile, buffer);
+  const audio = { content: fs.readFileSync(audioFile).toString("base64") };
+  const config = {
+    encoding: "MP3",
+    sampleRateHertz: 16000,
+    languageCode: "ko-KR",
+  };
+  const request = { audio, config };
+  const [response] = await client.recognize(request);
+  return response.results.map((r) => r.alternatives[0].transcript).join("\n");
 }
 
-/**
- * 장소 지남력 측정 결과 저장
- * @body {
- *   answers: {
- *     province: boolean,  // 도/특별시/광역시
- *     city: boolean,      // 시/군/구
- *     town: boolean,      // 읍/면/동
- *     floor: boolean,     // 층수
- *     placeName: boolean  // 건물 이름
- *   }
- * }
- */
-// 일단은 위에 꺼대로 안 하고 보호자로부터 true, false만 받는 걸로
-async function gradePlaceOrientation(req, res) {
-  const { answers } = req.body;
-  if (!answers) {
-    return res.status(400).json({
-      message: "answers는 필수입니다.",
-      resultCode: "ERR_MISSING_PARAM",
-    });
-  }
-  const score = Object.values(answers).filter((v) => v === true).length;
-
-  res.json({
-    Message: "MMSE 장소 지남력 결과가 저장되었습니다.",
-    ResultCode: "OK",
-    Score: score,
-  });
-}
+// 2. N-gram 생성
 function getNGrams(str, n = 2) {
   const grams = [];
   for (let i = 0; i <= str.length - n; i++) {
@@ -150,55 +58,85 @@ function getNGrams(str, n = 2) {
   return grams;
 }
 
-// Jaccard 유사도 계산
+// 3. N-gram 기반 Jaccard similarity
 function nGramSimilarity(str1, str2, n = 2) {
   const grams1 = new Set(getNGrams(str1, n));
   const grams2 = new Set(getNGrams(str2, n));
   const intersection = new Set([...grams1].filter((x) => grams2.has(x)));
   const union = new Set([...grams1, ...grams2]);
-  return intersection.size / union.size; // 0~1
+  return intersection.size / union.size;
 }
 
-async function gradeRegistration(req, res) {
-  const correct = ["나무", "자동차", "모자"];
+// 4. 단어 배열 vs 정답 배열 점수 계산
+function calculateScore(answers, correct, options = {}) {
+  const { nGramSize = 1, similarityThreshold = 0.5, useNGram = true } = options;
+  let score = 0;
 
-  const NGRAM_SIZE = 1;
-  const SIMILARITY_THRESHOLD = 0.5; // Jaccard 기준
-  try {
-    console.log(req.body);
-    const buffer = req.body;
-    const audioFile = path.join(__dirname, "tempfile.bin");
-    await fs.promises.writeFile(audioFile, buffer);
-    console.log(audioFile);
-    if (!audioFile) {
-      return res.status(400).json({ message: "audioFile이 필요합니다." });
+  correct.forEach((word) => {
+    let matched = false;
+    for (const answer of answers) {
+      if (typeof answer !== "string") continue;
+      let similarity = useNGram
+        ? nGramSimilarity(word, answer, nGramSize)
+        : stringSimilarity.compareTwoStrings(answer.replace(/\s+/g, ""), word);
+      if (similarity >= similarityThreshold) {
+        matched = true;
+        break;
+      }
     }
-    const sttResult = await quickstart(audioFile);
-    // const sttResult = await transcribeService(audioFile);
-    const answers = sttResult.split(/\s+/); // 공백 기준 배열로 변환
-    console.log(`sttResult: ${sttResult}`);
-    console.log(`answers: ${answers}`);
+    if (matched) score += 1;
+  });
 
-    let score = 0;
-    correct.forEach((word) => {
-      let matched = false;
-      for (const answer of answers) {
-        const similarity = nGramSimilarity(word, answer, NGRAM_SIZE);
-        console.log(similarity);
-        if (similarity >= SIMILARITY_THRESHOLD) {
-          matched = true;
+  return score;
+}
+
+// 5. 공통 JSON 응답
+function sendScoreResponse(res, message, score, details = null) {
+  const response = { Message: message, ResultCode: "OK", Score: score };
+  if (details) response.details = details;
+  res.json(response);
+}
+
+// ---------- MMSE 항목 API ----------
+
+// 1. 시간 지남력
+async function gradeTimeOrientation(req, res) {
+  try {
+    const { answers } = req.body;
+    if (!answers) throw new Error("answers 필요");
+
+    const baseDate = new Date();
+    const details = {};
+
+    details.year = Number(answers.year) === baseDate.getFullYear();
+
+    const month = baseDate.getMonth() + 1;
+    const correctSeason = MONTH_TO_SEASON[month];
+    details.season = false;
+
+    if (answers.season) {
+      const seasonAnswer = answers.season.trim();
+      const monthOffset = [month - 1, month, month + 1].map((m) =>
+        m <= 0 ? m + 12 : m > 12 ? m - 12 : m
+      );
+      for (const m of monthOffset) {
+        if (MONTH_TO_SEASON[m] === seasonAnswer) {
+          details.season = true;
           break;
         }
       }
-      if (matched) score += 1;
-    });
-    res.json({
-      Message: "기억 등록",
-      ResultCode: "OK",
-      Score: score,
-    });
+    }
+
+    details.month = Number(answers.month) === month;
+    details.day = Number(answers.day) === baseDate.getDate();
+    const correctWeekday =
+      WEEKDAYS[baseDate.getDay() === 0 ? 6 : baseDate.getDay() - 1];
+    details.weekday = answers.weekday === correctWeekday;
+
+    const score = Object.values(details).filter((v) => v === true).length;
+    sendScoreResponse(res, "시간 지남력 결과", score, details);
   } catch (err) {
-    return res.status(500).json({
+    res.status(500).json({
       Message: "Internal server error",
       ResultCode: "ERR_INTERNAL_SERVER",
       msg: err.toString(),
@@ -206,154 +144,171 @@ async function gradeRegistration(req, res) {
   }
 }
 
+// 2. 장소 지남력
+async function gradePlaceOrientation(req, res) {
+  try {
+    const { answers } = req.body;
+    if (!answers) throw new Error("answers 필요");
+    const score = Object.values(answers).filter((v) => v === true).length;
+    sendScoreResponse(res, "장소 지남력 결과", score);
+  } catch (err) {
+    res.status(500).json({
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      msg: err.toString(),
+    });
+  }
+}
+
+// 3. 기억 등록 / 반복 / 이름대기 (STT 기반)
+async function gradeSTTHandler(
+  req,
+  res,
+  correct,
+  options = {},
+  message = "기억 등록"
+) {
+  try {
+    const sttResult = await getSTTResultFromBuffer(req.body);
+    const answers = sttResult.split(/\s+/);
+    const score = calculateScore(answers, correct, options);
+    sendScoreResponse(res, message, score);
+  } catch (err) {
+    res.status(500).json({
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      msg: err.toString(),
+    });
+  }
+}
+
+function gradeRegistration(req, res) {
+  gradeSTTHandler(
+    req,
+    res,
+    ["나무", "자동차", "모자"],
+    { nGramSize: 1, similarityThreshold: 0.5 },
+    "기억 등록"
+  );
+}
+
+function gradeNaming(req, res) {
+  gradeSTTHandler(
+    req,
+    res,
+    ["시계"],
+    { useNGram: false, similarityThreshold: 0.5 },
+    "이름 대기"
+  );
+}
+
+function gradeRepetition(req, res) {
+  gradeSTTHandler(
+    req,
+    res,
+    ["간장공장공장장"],
+    { useNGram: false, similarityThreshold: 0.5 },
+    "따라 말하기"
+  );
+}
+
+// 4. Serial Sevens
 function gradeSerialSevens(req, res) {
-  const { answers } = req.body;
-  if (!Array.isArray(answers))
-    throw new Error("입력은 숫자 배열이어야 합니다.");
-
-  let score = 0;
-  let base = 100;
-  let result = [false, false, false, false, false];
-  for (let i = 0; i < answers.length; i++) {
-    if (base - 7 == answers[i]) {
-      score++;
-      result[i] = true;
-    }
-    base = answers[i];
-    if (answers[i] < 7) break;
-  }
-
-  return res.json({
-    Message: "Success",
-    ResultCode: "OK",
-    result,
-    Score: result.filter((v) => v === true).length,
-  });
-}
-
-function gradeDelayedRecall(req, res) {
-  gradeRegistration(req, res);
-}
-
-async function gradeNaming(req, res) {
-  const correct = ["시계"];
   try {
-    console.log(req.body);
-    const buffer = req.body;
-    const audioFile = path.join(__dirname, "tempfile.bin");
-    await fs.promises.writeFile(audioFile, buffer);
-    console.log(audioFile);
-    if (!audioFile) {
-      return res.status(400).json({ message: "audioFile이 필요합니다." });
-    }
-    const sttResult = await quickstart(audioFile);
-    // const sttResult = await transcribeService(audioFile);
-    const answers = sttResult.split(/\s+/); // 공백 기준 배열로 변환
-    console.log(`sttResult: ${sttResult}`);
-    console.log(`answers: ${answers}`);
-
-    let score = 0;
-    correct.forEach((word) => {
-      if (answers.includes(word)) {
-        score += 1;
+    const { answers } = req.body;
+    if (!Array.isArray(answers))
+      throw new Error("입력은 숫자 배열이어야 합니다.");
+    let score = 0,
+      base = 100,
+      result = [false, false, false, false, false];
+    for (let i = 0; i < 5; i++) {
+      if (base - 7 === answers[i]) {
+        score++;
+        result[i] = true;
       }
-    });
-    res.json({
-      Message: "이름 대기",
-      ResultCode: "OK",
-      Score: score,
-    });
-  } catch (err) {
-    return res.status(500).json({
-      Message: "Internal server error",
-      ResultCode: "ERR_INTERNAL_SERVER",
-      msg: err.toString(),
-    });
-  }
-}
-
-async function gradeRepetition(req, res) {
-  const SIMILARITY_THRESHOLD = 0.5; // Jaccard 기준
-  const correct = "간장공장공장장";
-
-  try {
-    console.log(req.body);
-    const buffer = req.body;
-    const audioFile = path.join(__dirname, "tempfile.bin");
-    await fs.promises.writeFile(audioFile, buffer);
-    console.log(audioFile);
-    if (!audioFile) {
-      return res.status(400).json({ message: "audioFile이 필요합니다." });
+      base = answers[i];
+      if (answers[i] < 7) break;
     }
-    let answers = await quickstart(audioFile);
-    // answers = answers.trim();
-    // console.log(answers);
-
-    let score = 0;
-
-    const similarity = stringSimilarity.compareTwoStrings(
-      answers.replace(/\s+/g, ""),
-      correct
-    );
-    if (similarity >= SIMILARITY_THRESHOLD) score = 1;
-    res.json({
-      Message: "기억 등록",
-      ResultCode: "OK",
-      Score: score,
-    });
+    sendScoreResponse(res, "주의력(연산 능력)", score, { result });
   } catch (err) {
-    return res.status(500).json({
+    res.status(500).json({
       Message: "Internal server error",
       ResultCode: "ERR_INTERNAL_SERVER",
       msg: err.toString(),
     });
   }
 }
+
+// 5. 단순 boolean 기반 항목
+function gradeBooleanHandler(req, res, message = "Success") {
+  try {
+    const { answers } = req.body;
+    if (!answers) throw new Error("answers 필요");
+    const score = Object.values(answers).filter((v) => v === true).length;
+    sendScoreResponse(res, message, score);
+  } catch (err) {
+    res.status(500).json({
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      msg: err.toString(),
+    });
+  }
+}
+
 function gradeThreeStepCommand(req, res) {
-  const { answers } = req.body;
-  if (!answers) {
-    return res.status(400).json({
-      message: "answers는 필수입니다.",
-      resultCode: "ERR_MISSING_PARAM",
-    });
-  }
-  return res.json({
-    Message: "Success",
-    ResultCode: "OK",
-    Score: answers.filter((v) => v === true).length,
-  });
+  gradeBooleanHandler(req, res, "3단계 명령");
 }
-
 function gradeConstructionalAbility(req, res) {
-  const { answers } = req.body.answers;
-  if (!answers) {
-    return res.status(400).json({
-      message: "answers는 필수입니다.",
-      resultCode: "ERR_MISSING_PARAM",
-    });
-  }
-  return res.json({
-    Message: "Success",
-    ResultCode: "OK",
-    Score: answers.filter((v) => v === true).length,
-  });
+  gradeBooleanHandler(req, res, "구성 능력");
 }
-
 function gradeJugment(req, res) {
-  const { answers } = req.body;
-  if (!answers) {
-    return res.status(400).json({
-      message: "answers는 필수입니다.",
-      resultCode: "ERR_MISSING_PARAM",
-    });
-  }
-  return res.json({
-    Message: "Success",
-    ResultCode: "OK",
-    Score: answers.filter((v) => v === true).length,
-  });
+  gradeBooleanHandler(req, res, "판단 능력");
 }
 
+// 6. Delayed Recall
+function gradeDelayedRecall(req, res) {
+  gradeRegistration(req, res, "지연 회상");
+}
+
+/**
+ * 총점 계산
+ * @param {Object} scores - 항목별 점수 객체
+ * scores:
+ *   {
+ *     timeOrientation: 5,
+ *     placeOrientation: 5,
+ *     registration: 3,
+ *     serialSevens: 5,
+ *     delayedRecall: 3,
+ *     naming: 1,
+ *     repetition: 1,
+ *     threeStepCommand: 3,
+ *     constructionalAbility: 1,
+ *     judgment: 3
+ *   }
+ * @returns {Number} 총점
+ */
+
+function calculateTotalScore(scores) {
+  return Object.values(scores).reduce(
+    (total, score) => total + (score || 0),
+    0
+  );
+}
+
+async function saveScore(req, res) {
+  const { scores } = req.body;
+  const totalscore = await models.dementia.create({
+    user_id: 2,
+    total_score: calculateTotalScore(scores),
+  });
+  res.json({
+    Message: "총점 저장 완료",
+    ResultCode: "OK",
+    TotalScore: totalscore,
+  });
+}
+// ---------- 모듈 내보내기 ----------
 module.exports = {
   gradeTimeOrientation,
   gradePlaceOrientation,
@@ -365,4 +320,6 @@ module.exports = {
   gradeThreeStepCommand,
   gradeConstructionalAbility,
   gradeJugment,
+  calculateTotalScore,
+  saveScore,
 };

@@ -29,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
         comment: "주의집중 및 계산 점수",
       },
       // 5. 기억 회상
-      recall: {
+      delay: {
         type: DataTypes.INTEGER,
         allowNull: true,
         comment: "기억 회상 점수",
@@ -41,37 +41,25 @@ module.exports = (sequelize, DataTypes) => {
         comment: "사물 이름대기 점수",
       },
       // 7. 따라 말하기
-      repetition: {
+      repeat: {
         type: DataTypes.INTEGER,
         allowNull: true,
         comment: "따라 말하기 점수",
       },
       // 8. 명령 수행
-      command: {
+      three: {
         type: DataTypes.INTEGER,
         allowNull: true,
         comment: "3단계 명령 수행 점수",
       },
-      // 9. 읽기
-      reading: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        comment: "읽기 수행 점수",
-      },
-      // 10. 쓰기
-      writing: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-        comment: "문장 쓰기 점수",
-      },
-      // 11. 도형 모사
-      copying: {
+      // 9. 도형 모사
+      construct: {
         type: DataTypes.INTEGER,
         allowNull: true,
         comment: "도형 모사 점수",
       },
-      // 12. 실행 능력 (praxis)
-      praxis: {
+      // 10. 실행 능력 (praxis)
+      judge: {
         type: DataTypes.INTEGER,
         allowNull: true,
         comment: "실행 능력 점수",
