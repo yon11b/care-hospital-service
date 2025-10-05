@@ -282,10 +282,118 @@ async function handleReportRejected(req, res) {
   }
 }
 
+// ========================================
+// 2. 회원 가입 차단 실행/해제 -> 블랙리스트
+// ========================================
+const USER_STATUS = {
+  NORMAL: 'normal',
+  BLACKLIST: 'blacklist',
+};
+
+// 2-1. 회원 가입 차단 실행
+// POST /admin/user/:userId/block
+async function addUserToBlacklist(req, res) {
+  try {
+    const { userId } = req.params;
+
+    // 관리자 로그인 및 권한 체크는 미들웨어에서 처리됨
+
+    // 1. 해당 사용자 조회
+    const targetUser = await models.user.findByPk(userId);
+
+    if (!targetUser) {
+      return res.status(404).json({        
+        Message: 'User not found',
+        ResultCode: 'USER_NOT_FOUND',
+      });
+    }
+
+    // 2. 이미 블랙리스트 상태라면
+    if (targetUser.status === USER_STATUS.BLACKLIST) {
+      return res.status(400).json({
+        Message: 'User is already blocked',
+        ResultCode: 'USER_ALREADY_BLOCKED',
+      });
+    }
+
+    // 3. 차단 처리
+    targetUser.status = USER_STATUS.BLACKLIST;
+    await targetUser.save();
+
+    // 4. 응답
+    return res.json({
+      Message: 'User has been blocked successfully',
+      ResultCode: 'OK',
+      user: {
+        id: targetUser.id,
+        name: targetUser.name,
+        status: targetUser.status,
+      },
+    });    
+  } catch (err) {
+    console.error('admin - addUserToBlacklist err:', err.message);
+    res.status(500).json({
+      Message: 'Internal server error',
+      ResultCode: 'ERR_INTERNAL_SERVER',
+      msg: err.toString(),
+    });
+  }
+}
+// 2-2. 회원 가입 차단 해제
+// DELETE /admin/user/:userId/block
+async function removeUserFromBlacklist(req, res) {
+  try {
+    const { userId } = req.params;
+
+    // 관리자 권한 체크는 미들웨어에서 처리됨
+
+    // 1. 사용자 조회
+    const targetUser = await models.user.findByPk(userId);
+
+    if (!targetUser) {
+      return res.status(404).json({
+        Message: 'User not found',
+        ResultCode: 'USER_NOT_FOUND',
+      });
+    }
+
+    // 2. 블랙리스트 상태가 아니면 해제할 필요 없음
+    if (targetUser.status !== USER_STATUS.BLACKLIST) {
+      return res.status(400).json({
+        Message: 'User is not blacklisted',
+        ResultCode: 'USER_NOT_BLACKLISTED',
+      });
+    }
+
+    // 3. 차단 해제 처리
+    targetUser.status = USER_STATUS.NORMAL;
+    await targetUser.save();
+
+    // 4. 성공 응답
+    return res.json({
+      Message: 'User has been unblocked successfully',
+      ResultCode: 'OK',
+      user: {
+        id: targetUser.id,
+        name: targetUser.name,
+        status: targetUser.status,
+      },
+    });
+  } catch (err) {
+    console.error('admin - removeUserFromBlacklist err:', err.message);
+    res.status(500).json({
+      Message: 'Internal server error',
+      ResultCode: 'ERR_INTERNAL_SERVER',
+      msg: err.toString(),
+    });
+  }
+}
 module.exports = { 
     getReports,
     getReportDetail,
     handleReportApproved,
     handleReportRejected,
+    addUserToBlacklist,
+    removeUserFromBlacklist
 
 };

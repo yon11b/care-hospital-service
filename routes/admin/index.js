@@ -13,7 +13,8 @@ const {
     getReportDetail,
     handleReportApproved,
     handleReportRejected,
-
+    addUserToBlacklist,
+    removeUserFromBlacklist
 } = require("./admin");
 
 // 1. 신고 관련 기능     
@@ -23,4 +24,7 @@ router.get('/reports/:reportId', requireRole("admin"), getReportDetail); // 신�
 router.patch('/reports/:reportId/approved', requireRole("admin"), handleReportApproved); // 신고 승인
 router.patch('/reports/:reportId/rejected', requireRole("admin"), handleReportRejected); // 신고 거절
 
+// 2. 블랙리스트 관련 기능
+router.post('/user/:userId/block', requireRole("admin"), addUserToBlacklist);
+router.delete('/user/:userId/block', requireRole("admin"), removeUserFromBlacklist);
 module.exports = router;
