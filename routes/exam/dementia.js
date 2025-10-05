@@ -320,6 +320,5 @@ module.exports = {
   gradeThreeStepCommand,
   gradeConstructionalAbility,
   gradeJugment,
-  calculateTotalScore,
   saveScore,
 };
