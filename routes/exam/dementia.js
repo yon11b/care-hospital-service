@@ -134,7 +134,7 @@ async function gradeTimeOrientation(req, res) {
     details.weekday = answers.weekday === correctWeekday;
 
     const score = Object.values(details).filter((v) => v === true).length;
-    sendScoreResponse(res, "시간 지남력 결과", score, details);
+    sendScoreResponse(res, "시간 지남력", score, details);
   } catch (err) {
     res.status(500).json({
       Message: "Internal server error",
@@ -150,7 +150,7 @@ async function gradePlaceOrientation(req, res) {
     const { answers } = req.body;
     if (!answers) throw new Error("answers 필요");
     const score = Object.values(answers).filter((v) => v === true).length;
-    sendScoreResponse(res, "장소 지남력 결과", score);
+    sendScoreResponse(res, "장소 지남력", score);
   } catch (err) {
     res.status(500).json({
       Message: "Internal server error",
@@ -172,6 +172,9 @@ async function gradeSTTHandler(
     const sttResult = await getSTTResultFromBuffer(req.body);
     const answers = sttResult.split(/\s+/);
     const score = calculateScore(answers, correct, options);
+    if (message == "이름 대기") {
+      score *= 2;
+    }
     sendScoreResponse(res, message, score);
   } catch (err) {
     res.status(500).json({
