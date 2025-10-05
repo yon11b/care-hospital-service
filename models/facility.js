@@ -1,4 +1,5 @@
 
+
 module.exports = (sequelize, DataTypes) => {
   const facility = sequelize.define(
     "facility",
