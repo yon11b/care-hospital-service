@@ -1,14 +1,15 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const multer = require('multer');
-const aws = require('aws-sdk');
-const multerS3 = require('multer-s3');
-const path = require('path');
-const db = require('../../models');
-const config = require('../../config/config.json')[process.env.NODE_ENV || 'development'];
+const multer = require("multer");
+const aws = require("aws-sdk");
+const multerS3 = require("multer-s3");
+const path = require("path");
+const db = require("../../models");
+const config = require("../../config/config.json")[
+  process.env.NODE_ENV || "development"
+];
 
-const { authMiddleware } = require('../../middleware/authMiddleware.js');
-
+const { authMiddleware } = require("../../middleware/authMiddleware.js");
 
 aws.config.update({
   region: process.env.AWS_S3_REGION,
@@ -25,7 +26,7 @@ const upload = multer({
     key: (req, file, callback) => {
       //console.log(req.body.today_meal_url);
       const ext = path.extname(file.originalname);
-      console.log('================');
+      console.log("================");
       console.log(file);
       console.log(ext);
       // 콜백 함수 두 번째 인자에 파일명(경로 포함)을 입력
@@ -34,25 +35,27 @@ const upload = multer({
   }),
 });
 
+const {
+  getReviews,
+  getReview,
+  createReview,
+  updateReview,
+  deleteReview,
+  reportReview,
+} = require("./reviews");
 
-const { 
-  getReviews, 
-  getReview, 
-  createReview, 
-  updateReview, 
-  deleteReview, 
-  reportReview 
-} = require('./reviews');
+router.get("/:facilityId", getReviews); // 전체 리뷰 조회
+router.get("/:facilityId/:reviewId", getReview); // 리뷰 하나 상세 조회
 
-
-
-router.get('/:facilityId', getReviews); // 전체 리뷰 조회
-router.get('/:facilityId/:reviewId', getReview);// 리뷰 하나 상세 조회
-
-const reviewsUpload = upload.array('images', 4)
-router.post('/:facilityId', authMiddleware, reviewsUpload, createReview);// 리뷰 작성
-router.patch('/:facilityId/:reviewId', authMiddleware, reviewsUpload, updateReview); // 리뷰 수정
-router.delete('/:facilityId/:reviewId', authMiddleware, deleteReview); // 리뷰 삭제
-router.post('/:reviewId/report', authMiddleware, reportReview); // 리뷰 신고
+const reviewsUpload = upload.array("images", 4);
+router.post("/:facilityId", authMiddleware, reviewsUpload, createReview); // 리뷰 작성
+router.patch(
+  "/:facilityId/:reviewId",
+  authMiddleware,
+  reviewsUpload,
+  updateReview
+); // 리뷰 수정
+router.delete("/:facilityId/:reviewId", authMiddleware, deleteReview); // 리뷰 삭제
+//router.post("/:reviewId/report", authMiddleware, reportReview); // 리뷰 신고
 
 module.exports = router;

@@ -2,7 +2,6 @@ const models = require("../../models");
 const session = require("express-session");
 const sha256 = require("sha256");
 const axios = require("axios");
-const crypto = require("crypto");
 require("dotenv").config();
 
 const diseaseTranslations = {
@@ -57,12 +56,10 @@ const diseaseTranslations = {
   vitiligo: "백반증",
 };
 
-async function predictDisease(req, res) {
+async function skin_analysis(req, res) {
   try {
     const url =
       "https://www.ailabapi.com/api/portrait/analysis/skin-disease-detection";
-    console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-    console.log(req.file);
     const base64Image = req.file
       ? req.file.buffer.toString("base64")
       : undefined;
@@ -110,5 +107,5 @@ async function predictDisease(req, res) {
 }
 
 module.exports = {
-  predictDisease,
+  skin_analysis,
 };

@@ -196,30 +196,41 @@ async function upsertMeal(req, res) {
     });
   }
   try {
-    const updatedMeal = await models.meal.upsert({
-      facility_id: req.params.facilityid,
-      today_meal_desc: req.body.today_meal_desc,
-      meal_date: mealDate,
-      breakfast_meal_picture_url: req.files.breakfast_meal_picture_url
-        ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.breakfast_meal_picture_url[0].key}`
-        : undefined,
-      lunch_meal_picture_url: req.files.lunch_meal_picture_url
-        ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.lunch_meal_picture_url[0].key}`
-        : undefined,
-      dinner_meal_picture_url: req.files.dinner_meal_picture_url
-        ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.dinner_meal_picture_url[0].key}`
-        : undefined,
-      week_meal_picture_url: req.files.week_meal_picture_url
-        ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.week_meal_picture_url[0].key}`
-        : undefined,
-    });
-    res.send({
-      Message: "Success to meal information updated",
-      ResultCode: "ERR_OK",
-      Response: {
-        updatedMeal,
-      },
-    });
+    if (
+      !req.session.user ||
+      req.session.user.role == "user" ||
+      req.session.user.facility_id != req.params.facilityid
+    ) {
+      res.status(401).send({
+        Message: "Unauthorized",
+        ResultCode: "ERR_UNAUTHORIZED",
+      });
+    } else {
+      const updatedMeal = await models.meal.upsert({
+        facility_id: req.params.facilityid,
+        today_meal_desc: req.body.today_meal_desc,
+        meal_date: req.body.meal_date,
+        breakfast_meal_picture_url: req.files.breakfast_meal_picture_url
+          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.breakfast_meal_picture_url[0].key}`
+          : undefined,
+        lunch_meal_picture_url: req.files.lunch_meal_picture_url
+          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.lunch_meal_picture_url[0].key}`
+          : undefined,
+        dinner_meal_picture_url: req.files.dinner_meal_picture_url
+          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.dinner_meal_picture_url[0].key}`
+          : undefined,
+        week_meal_picture_url: req.files.week_meal_picture_url
+          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.week_meal_picture_url[0].key}`
+          : undefined,
+      });
+      res.send({
+        Message: "Success to meal information updated",
+        ResultCode: "ERR_OK",
+        Response: {
+          updatedMeal,
+        },
+      });
+    }
   } catch (err) {
     // bad request
     console.log(err);
