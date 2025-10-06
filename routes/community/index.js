@@ -41,13 +41,14 @@ const {
   createCommunity, 
   updateCommunity, 
   deleteCommunity,
-  reportCommunity,   
+  reportCommunity   
+} = require('./community');
+const {  
   createComment,
   updateComment,
   deleteComment,
   reportComment
-} = require('./community');
-
+} = require('./comment');
 
 router.get('/', getCommunities); // 전체 글 조회
 router.get('/:communityId', getCommunity);// 글 하나 조회
