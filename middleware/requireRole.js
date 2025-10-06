@@ -7,7 +7,7 @@ function requireRole(roles) {
       return res.status(401).json({
         result: false,
         Message: "로그인이 필요합니다",
-        ResultCode: "Unauthorized",
+        ResultCode: "requireRole - Unauthorized",
       });
     }
 

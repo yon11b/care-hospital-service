@@ -13,9 +13,16 @@ const {
     getReportDetail,
     handleReportApproved,
     handleReportRejected,
+} = require("./report.js");
+const {
     addUserToBlacklist,
-    removeUserFromBlacklist
-} = require("./admin");
+    removeUserFromBlacklist,
+    getUsersList,
+    getUserDetail,
+} = require("./user.js");
+const{
+    getStaffsList,
+} = require("./facility.js");
 
 // 1. 신고 관련 기능     
 // admin 로그인 세션 확인 -> 미들웨어(requireRole)로 체크
@@ -25,6 +32,12 @@ router.patch('/reports/:reportId/approved', requireRole("admin"), handleReportAp
 router.patch('/reports/:reportId/rejected', requireRole("admin"), handleReportRejected); // 신고 거절
 
 // 2. 블랙리스트 관련 기능
-router.post('/user/:userId/block', requireRole("admin"), addUserToBlacklist);
-router.delete('/user/:userId/block', requireRole("admin"), removeUserFromBlacklist);
+router.post('/user/:userId/block', requireRole("admin"), addUserToBlacklist); // 블랙리스트 등록
+router.delete('/user/:userId/block', requireRole("admin"), removeUserFromBlacklist); // 블랙리스트 해제
+
+// 3. 회원 관리 - 회원(사용자/기관) 목록 조회
+router.get('/members/users', requireRole("admin"), getUsersList); // 사용자 목록
+router.get('/members/users/:userId', requireRole("admin"), getUserDetail); // 사용자 상세 보기
+router.get('/members/staffs', requireRole("admin"), getStaffsList); // 기관 목록
+
 module.exports = router;
