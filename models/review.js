@@ -24,7 +24,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true,
         },
         rating: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.DOUBLE,
             allowNull: true,
             validate: {
                 min: 1,
