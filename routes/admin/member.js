@@ -216,28 +216,40 @@ async function getUserDetail (req, res) {
     const reviewsCount = reviewsData[0]?.count || 0;
     const reviewsAvgRating = parseFloat(reviewsData[0]?.avgRating || 0);
 
-    // 4. 받은 신고 내역 (reports_received)
+    // 3. 받은 신고 내역 (reports_received)
     const reportsReceived = await models.report.findAll({
-      where: { target_id: { [Op.in]: models.sequelize.literal(`(
-        SELECT id FROM reviews WHERE user_id = ${userId}
-        UNION
-        SELECT id FROM communities WHERE user_id = ${userId}
-        UNION
-        SELECT id FROM comments WHERE user_id = ${userId}
-      )`) } },
+      include: [
+        {
+          model: models.review,
+          required: false,
+          where: { user_id: userId },
+          attributes: []
+        },
+        {
+          model: models.community,
+          required: false,
+          where: { user_id: userId },
+          attributes: []
+        },
+        {
+          model: models.comment,
+          required: false,
+          where: { user_id: userId },
+          attributes: []
+        }
+      ],
       order: [['created_at', 'DESC']],
       limit: 5,
       attributes: ['id','type','target_id','category','reason','status','created_at','resolved_at']
     });
 
+    // 4. 받은 신고 총 개수
     const reportsReceivedCount = await models.report.count({
-      where: { target_id: { [Op.in]: models.sequelize.literal(`(
-        SELECT id FROM reviews WHERE user_id = ${userId}
-        UNION
-        SELECT id FROM communities WHERE user_id = ${userId}
-        UNION
-        SELECT id FROM comments WHERE user_id = ${userId}
-      )`) } }
+      include: [
+        { model: models.review, required: false, where: { user_id: userId } },
+        { model: models.community, required: false, where: { user_id: userId } },
+        { model: models.comment, required: false, where: { user_id: userId } }
+      ]
     });
 
     // 응답
@@ -276,7 +288,76 @@ async function getUserDetail (req, res) {
 // GET /admin/members/facilities
 async function getStaffsList(req, res) {
   try {
-    // 관리자 로그인 및 권한 체크는 미들웨어에서 처리됨
+    // 페이지네이션
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+
+    // 검색 및 필터
+    const keyword = req.query.keyword || '';
+    const approval_status = req.query.approval_status; // 승인 상태
+
+    // 안전한 정렬
+    const allowedSortColumns = ['created_at', 'name', 'email', 'role'];
+    const sortBy = allowedSortColumns.includes(req.query.sortBy) ? req.query.sortBy : 'created_at';
+    const sortOrder = req.query.sortOrder === 'ASC' ? 'ASC' : 'DESC';
+
+    // 직원 조건 (role=staff or owner)
+    const staffWhere = {
+      role: { [Op.in]: ['staff', 'owner'] },
+    };
+    if (approval_status) staffWhere.approval_status = approval_status;
+
+    // 직원 + 기관 이름 통합 검색
+    if (keyword) {
+      staffWhere[Op.or] = [
+        { name: { [Op.iLike]: `%${keyword}%` } },       // 직원 이름
+        { email: { [Op.iLike]: `%${keyword}%` } },      // 직원 이메일
+        { '$facility.name$': { [Op.iLike]: `%${keyword}%` } }, // 기관 이름
+      ];
+    }
+
+    // 직원 기준 조회 + 전체 count (findAndCountAll)
+    const { count: totalCount, rows: staffs } = await models.staff.findAndCountAll({
+      where: staffWhere,
+      include: [
+        {
+          model: models.facility,
+          attributes: ['name'],
+          required: true, // 직원만 있는 기관
+        },
+      ],
+      order: [
+        [sortBy, sortOrder],
+        ['role', 'ASC'],
+      ],
+      limit,
+      offset,
+      distinct: true, // 중복 직원 제거
+    });
+
+    // 직원 배열 가공
+    const staffList = staffs.map(s => ({
+      facility_name: s.facility?.name || '', // 소속 기관
+      role: s.role,
+      name: s.name,
+      email: s.email,
+      approval_status: s.approval_status,
+      created_at: s.created_at,
+      updated_at: s.updated_at,
+    }));
+
+    res.json({
+      ResultCode: 'SUCCESS',
+      Message: '기관 회원 목록 조회 성공',
+      data: staffList,
+      pagination: {
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount,
+      },
+    });
 
   } catch (err) {
     console.error('admin - getStaffsList err:', err.message);
@@ -288,12 +369,17 @@ async function getStaffsList(req, res) {
   }
 }
 // 3-2. 회원(기관 대표, 직원) 상세 조회
-// GET /admin/members/facilities/:facilityId
+// GET /admin/members/facilities/:staffId
 async function getStaffDetail(req, res) {
   try {
     // 관리자 로그인 및 권한 체크는 미들웨어에서 처리됨
 
+    // 경우1. 회원(기관 대표, 직원) 목록 조회 1개, 기관 목록 조회 1개
 
+    /*
+    경우 2. (기관명, 대표자, 승인 상태 등) 목록 조회에서 보여주고 
+    상세보기를 누르면 해당 기관 안에 포함된 직원들과 상세 내역 보여주기 
+    */
   } catch (err) {
     console.error('admin - getStaffDetail err:', err.message);
     res.status(500).json({
