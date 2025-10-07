@@ -33,6 +33,7 @@ app.use(
 );
 app.use(cookieParser());
 
+app.use(express.raw({ type: "application/octet-stream", limit: "50mb" }));
 if (process.env.NODE_ENV === "production") {
   app.use("/", express.static(path.join(__dirname, viewPath.index)));
 } else {
@@ -78,11 +79,10 @@ if (process.env.proxy == "false") {
 if (process.env.proxy == "true") {
   app.use("/", proxy("localhost:8001"));
 }
-
 //DB Sync
-const sequelize = require("sequelize");
-const models = require("./models");
-models.sequelize.sync();
+// const sequelize = require("sequelize");
+// const models = require("./models");
+// models.sequelize.sync();
 
 //error handling
 
