@@ -23,6 +23,10 @@ const {
   getfavorites,
   toggleFavorite
 } = require("./favorite")
+const {
+	handleCallback,
+  refreshToken
+} = require("./sns")
 
 router.get("/session", getSession);
 router.post("/", upsertUser);
@@ -30,9 +34,17 @@ router.post("/approveFacility", approveFacility);
 router.post("/login", login);
 router.post("/logout", logout);
 //router.post('/checkFacility', checkFacility);
-router.use('/sns', require('./sns')); 
 
 router.get('/:userId/favorites', authMiddleware, getfavorites);
 router.post('/:userId/favorites/:facilityId', authMiddleware, toggleFavorite);
+
+
+// 각 sns callback 라우트
+router.get('/sns/login/naver/callback', (req, res) => handleCallback(req, res, 'naver'));
+
+
+// refresh token 재발급
+router.post('/sns/login/refresh-token', refreshToken); // Refresh token 재발급 (POST)
+
 
 module.exports = router;
