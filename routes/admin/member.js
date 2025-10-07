@@ -284,8 +284,9 @@ async function getUserDetail (req, res) {
 // ========================================
 // 3. 회원(기관) 목록 조회 및 상세 조회
 // ========================================
-// 3-1. 회원(기관 대표, 직원) 목록 조회
-// GET /admin/members/facilities
+// 3-1. 회원(기관 대표, 직원) 목록 조회 경우 1
+// | 기관명 | 이름 | 직급 | 상태 | 등록일 |
+// GET /admin/members/staffs
 async function getStaffsList(req, res) {
   try {
     // 페이지네이션
@@ -368,32 +369,117 @@ async function getStaffsList(req, res) {
     });
   }
 }
-// 3-2. 회원(기관 대표, 직원) 상세 조회
-// GET /admin/members/facilities/:staffId
-async function getStaffDetail(req, res) {
+// 3-1-1. 회원(기관 대표, 직원) 상세 조회 (고민 중)
+
+// 3-2. 회원(기관 대표, 직원) 목록 조회 경우 2
+// | 기관명 | 대표 | 직원 수 | 승인 상태 | 생성일 |
+// GET /admin/members/facilities
+async function getFacilitiesList(req, res) {
   try {
-    // 관리자 로그인 및 권한 체크는 미들웨어에서 처리됨
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const offset = (page - 1) * limit;
+    const keyword = req.query.keyword || '';
 
-    // 경우1. 회원(기관 대표, 직원) 목록 조회 1개, 기관 목록 조회 1개
+    // 검색 조건
+    const where = {};
+    if (keyword) {
+      where.name = { [Op.iLike]: `%${keyword}%` };
+    }
 
-    /*
-    경우 2. (기관명, 대표자, 승인 상태 등) 목록 조회에서 보여주고 
-    상세보기를 누르면 해당 기관 안에 포함된 직원들과 상세 내역 보여주기 
-    */
+    // 기관 조회 + 대표, 직원 수 포함
+    const { count: totalCount, rows: facilities } = await models.facility.findAndCountAll({
+      where,
+      include: [
+        {
+          model: models.staff,
+          attributes: ['role', 'id'],
+        },
+      ],
+      order: [['created_at', 'DESC']],
+      limit,
+      offset,
+      distinct: true,
+    });
+
+    // 데이터 가공
+    const data = facilities.map(f => {
+      const owner = f.staffs.find(s => s.role === 'owner');
+      const staffCount = f.staffs.filter(s => s.role === 'staff').length;
+
+      return {
+        id: f.id,
+        name: f.name,
+        owner_name: owner?.name || '',
+        staff_count: staffCount,
+        approval_status: f.approval_status,
+        created_at: f.created_at,
+      };
+    });
+
+    res.json({
+      ResultCode: 'SUCCESS',
+      Message: '기관 목록 조회 성공',
+      data,
+      pagination: {
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount,
+      },
+    });
   } catch (err) {
-    console.error('admin - getStaffDetail err:', err.message);
+    console.error('admin - getFacilitiesList err:', err);
     res.status(500).json({
-      Message: 'Internal server error',
       ResultCode: 'ERR_INTERNAL_SERVER',
+      Message: 'Internal server error',
       msg: err.toString(),
     });
   }
 }
+
+// 3-2-1. 회원(기관 대표, 직원) 상세 조회
+// | 이름 | 이메일 | 역할 | 승인 상태 | 가입일
+// GET /admin/members/facilities/:facilityId
+async function getFacilityStaffs(req, res) {
+  try {
+    const facilityId = parseInt(req.params.facilityId, 10);
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        ResultCode: 'ERR_INVALID_PARAM',
+        Message: 'Invalid facilityId parameter',
+      });
+    }
+
+    const staffs = await models.staff.findAll({
+      where: { facility_id: facilityId },
+      attributes: ['id', 'name', 'email', 'role', 'approval_status', 'created_at'],
+      order: [['role', 'ASC'], ['created_at', 'ASC']],
+    });
+
+    res.json({
+      ResultCode: 'SUCCESS',
+      Message: '직원 목록 조회 성공',
+      data: staffs,
+    });
+  } catch (err) {
+    console.error('admin - getFacilityStaffs err:', err);
+    res.status(500).json({
+      ResultCode: 'ERR_INTERNAL_SERVER',
+      Message: 'Internal server error',
+      msg: err.toString(),
+    });
+  }
+}
+
 module.exports = { 
     addUserToBlacklist,
     removeUserFromBlacklist,
     getUsersList,
     getUserDetail,
     getStaffsList,
-    getStaffDetail
+    //getStaffDetail,
+
+    getFacilitiesList,
+    getFacilityStaffs
 };

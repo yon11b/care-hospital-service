@@ -19,8 +19,10 @@ const {
     removeUserFromBlacklist,
     getUsersList,
     getUserDetail,
+
     getStaffsList,
-    getStaffDetail
+    getFacilitiesList,
+    getFacilityStaffs
 } = require("./member.js");
 
 // 1. 신고 관련 기능     
@@ -37,7 +39,14 @@ router.delete('/user/:userId/block', requireRole("admin"), removeUserFromBlackli
 // 3. 회원 관리 - 회원(사용자/기관) 목록 조회
 router.get('/members/users', requireRole("admin"), getUsersList); // 사용자 목록
 router.get('/members/users/:userId', requireRole("admin"), getUserDetail); // 사용자 상세 보기
-router.get('/members/facilities', requireRole("admin"), getStaffsList); // 회원(기관 대표, 직원) 목록 조회
-router.get('/members/facilities/:facilityId', requireRole("admin"), getStaffDetail); // 회원(기관 대표, 직원) 목록 상세 조회
+router.get('/members/staffs', requireRole("admin"), getStaffsList); // 회원(기관 대표, 직원) 목록 조회
+router.get('/members/facilities', requireRole("admin"), getFacilitiesList); 
+router.get('/members/facilities/:facilityId', requireRole("admin"), getFacilityStaffs); 
+
+// GET /admin/members/staffs
+// GET /admin/members/facilities
+// GET /admin/members/facilities/:facilityId
+
+
 
 module.exports = router;
