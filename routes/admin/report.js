@@ -114,9 +114,47 @@ async function getReportDetail(req, res) {
 // patch /admin/reports/:reportId/approved
 // report 상태 : PENDING -> APPROVED( 대상 삭제 )
 // 리뷰, 커뮤니티, 댓글 상태: PEPORT_PENDING -> DELETED
+async function deleteCommentById(commentId, now) { // 댓글 + 대댓글 삭제
+  const allIds = new Set([commentId]); // Set으로 중복 제거
+
+  // 루트 댓글 먼저 추가
+  allIds.add(commentId);
+
+  // 재귀적으로 모든 하위 댓글 id 수집
+  async function collectChildComments(parentIds) {
+    if (!parentIds.length) return;
+
+    const childComments = await models.comment.findAll({
+      where: {
+        parent_id: { [Op.in]: parentIds },
+        status: { [Op.in]: ['ACTION', 'REPORT_PENDING'] }
+      },
+      attributes: ['id'],
+      raw: true
+    });
+
+    if (childComments.length) {
+      const childIds = childComments.map(c => c.id);
+      childIds.forEach(id => allIds.add(id)); // Set에 추가
+      await collectChildComments(childIds); // 재귀 호출
+    }
+  }
+
+  await collectChildComments([commentId]);
+
+  // DB 업데이트 (soft delete)
+  await models.comment.update(
+    { status: 'DELETED', deleted_at: now },
+    { where: { id: Array.from(allIds) } } // Set → Array
+  );
+
+  return Array.from(allIds);  // 삭제된 댓글 ID 배열 반환
+}
+
 async function handleReportApproved(req, res) {
   try {
     const reportId = parseInt(req.params.reportId, 10); 
+    const now = new Date(); // 여기서 한 번만 생성
 
     // admin 로그인 세션 확인 -> 미들웨어로 체크
 
@@ -167,32 +205,61 @@ async function handleReportApproved(req, res) {
       });
     }
 
-    // 6. 승인 처리
-    // 신고 상태 : PENDING -> APPROVED
+    // 6. 신고 승인 + 신고 대상 처리
     foundReport.status = 'APPROVED';
     await foundReport.save();
 
-    // 신고 대상 상태 : REPORT_PENDING -> DELETED    
-    target.status = 'DELETED';
-    target.deleted_at = new Date();
-    await target.save();
+    let deletedCommentIds = new Set();
     
+    if (foundReport.type === 'COMMENT') { 
+      const ids = await deleteCommentById(target.id, now); // Array 반환
+      ids.forEach(id => deletedCommentIds.add(id));   // Set에 추가
+    
+    } else if (foundReport.type === 'COMMUNITY') { 
+      target.status = 'DELETED';
+      target.deleted_at = now;
+      await target.save();
+
+      // 댓글 전체 soft delete (재귀 필요 X)
+      await models.comment.update(
+        { status: 'DELETED', deleted_at: now },
+        { where: { community_id: target.id, status: { [Op.in]: ['ACTION', 'REPORT_PENDING'] } } }
+      );
+
+    } else if (foundReport.type === 'REVIEW') { // 리뷰
+      target.status = 'DELETED';
+      target.deleted_at = now;
+      await target.save();
+    }
+
     return res.json({
       Message: '신고가 승인 처리되었습니다.',
       ResultCode: 'SUCCESS',
-      data: { report: foundReport, target }
+      report: {
+        id: foundReport.id,
+        type: foundReport.type,
+        status: foundReport.status,
+        target_id: foundReport.target_id,
+      },
+      target: {
+        id: target.id,
+        type: foundReport.type,
+        status: target.status,
+        deleted_at: target.deleted_at,
+      },
+      deletedCommentIds: Array.from(deletedCommentIds)
     });
 
-
   } catch (err) {
-    console.error('admin - handleReportApproved err:', err.message);
-    res.status(500).json({ 
+    console.error('admin - handleReportApproved err:', err);
+    res.status(500).json({
       Message: 'Internal server error',
       ResultCode: 'ERR_INTERNAL_SERVER',
       msg: err.toString(),
     });
   }
 }
+
 // 1-4. 신고 처리하기 - 거절/반려
 // patch /admin/reports/:reportId/rejected
 // report 상태 : PENDING -> REJECTED (대상 유지됨)
@@ -264,12 +331,21 @@ async function handleReportRejected(req, res) {
     target.status = 'ACTION';
     await target.save();
 
-
+    // 7. 응답
     return res.json({
       Message: '신고가 거절 처리되었습니다.',
       ResultCode: 'SUCCESS',
-      data: { report: foundReport, target },
-
+      report: {
+        id: foundReport.id,
+        type: foundReport.type,
+        status: foundReport.status,
+        target_id: foundReport.target_id
+      },
+      target: {
+        id: target.id,
+        type: foundReport.type,
+        status: target.status
+      }
     });
 
   } catch (err) {
