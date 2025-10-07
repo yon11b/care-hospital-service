@@ -35,10 +35,12 @@ const WEEKDAYS = [
 // ---------- 공통 함수 ----------
 
 // 1. audio buffer → STT 결과 반환
-async function getSTTResultFromBuffer(buffer, filename = "tempfile.bin") {
-  const audioFile = path.join(__dirname, filename);
-  await fs.promises.writeFile(audioFile, buffer);
-  const audio = { content: fs.readFileSync(audioFile).toString("base64") };
+async function getSTTResultFromBuffer(audioFile) {
+  //const audioFile = path.join(__dirname, filename);
+  //await fs.promises.writeFile(audioFile, buffer);
+  //const audio = { content: fs.readFileSync(audioFile).toString("base64") };
+
+  const audio = { content: audioFile.toString("base64") };
   const config = {
     encoding: "MP3",
     sampleRateHertz: 16000,
@@ -161,6 +163,7 @@ async function gradePlaceOrientation(req, res) {
 }
 
 // 3. 기억 등록 / 반복 / 이름대기 (STT 기반)
+
 async function gradeSTTHandler(
   req,
   res,
@@ -169,7 +172,9 @@ async function gradeSTTHandler(
   message = "기억 등록"
 ) {
   try {
-    const sttResult = await getSTTResultFromBuffer(req.body);
+    if (!req.file) throw new Error("파일이 업로드되지 않았습니다.");
+    const audioFile = req.file.buffer;
+    const sttResult = await getSTTResultFromBuffer(audioFile);
     const answers = sttResult.split(/\s+/);
     const score = calculateScore(answers, correct, options);
     if (message == "이름 대기") {
@@ -301,8 +306,9 @@ function calculateTotalScore(scores) {
 
 async function saveScore(req, res) {
   const { scores } = req.body;
+  console.log(req.user);
   const totalscore = await models.dementia.create({
-    user_id: 2,
+    user_id: req.user.id,
     total_score: calculateTotalScore(scores),
   });
   res.json({

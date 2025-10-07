@@ -120,7 +120,6 @@ async function upsertUser(req, res) {
           role: req.body.role,
           facility_id: req.body.facility_id,
           facility_number: req.body.facility_number,
-          //token: 'test',
         });
         await checkFacility(req.body.facility_number, req.body.email);
       } else if (req.body.role == "staff") {
