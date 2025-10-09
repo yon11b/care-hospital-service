@@ -5,6 +5,9 @@ const Sequelize = require('sequelize');
 const AWS = require('aws-sdk');
 const { Op } = require('sequelize');
 
+// ===============================
+// 사용자의 예약 기능
+// ===============================
 // 1. 예약하기
 // /facilities/{facilityId}/reservation
 async function createReservation(req, res){
@@ -132,7 +135,7 @@ async function createReservation(req, res){
 }
 
 // 유저의 예약 전체 조회
-// /facilities/reservation
+// /facilities/reservations/list
 async function getReservations(req, res) {
   try{
     const userId = req.user.id; // 로그인 유저
@@ -199,7 +202,7 @@ async function getReservations(req, res) {
 }
 
 // 유저의 특정 예약 상세 조회
-// //facilities/reservation/{reservationId}
+// //facilities/reservations/{reservationId}
 async function getReservationDetail(req, res){
   try {
     const userId = req.user.id; // 로그인 유저
@@ -285,7 +288,7 @@ async function getReservationDetail(req, res){
 
 
 // 유저의 예약 취소
-// patch /facilities/reservation/{reservationId}
+// patch /facilities/reservations/{reservationId}
 async function cancelReservation(req, res){
   try {
     const userId = req.user.id; // 로그인 유저
@@ -349,11 +352,261 @@ async function cancelReservation(req, res){
   }
 }
 
+// ===============================
+// 기관의 예약 기능
+// ===============================
+// 1. 기관의 예약 목록 조회
+// GET /facilities/{facilityId}/dashboard/reservations
+async function getFacilityReservations(req, res) {
+  try {
+    const staff = req.session.user; // 세션 기반 로그인
+    const facilityId = parseInt(req.params.facilityId, 10);
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const offset = (page - 1) * limit;
 
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        Message: "Invalid facilityId parameter",
+        ResultCode: "ERR_INVALID_PARAM",
+      });
+    }
+
+    // 직원 소속 기관 확인
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({
+        Message: "해당 기관의 예약 목록을 조회할 권한이 없습니다.",
+        ResultCode: "ERR_FORBIDDEN",
+      });
+    }
+
+    const { status, keyword, startDate, endDate } = req.query;
+    
+    // 기본 필터: facility_id
+    let where = { facility_id: facilityId };
+
+    // status 필터링
+    if (status) {
+      const upperStatus = status.toUpperCase();
+      const validStatuses = ['PENDING', 'CONFIRMED', 'REJECTED', 'CANCELED'];
+      if (!validStatuses.includes(upperStatus)) {
+        return res.status(400).json({
+          Message: "유효하지 않은 상태값입니다.",
+          ResultCode: "ERR_INVALID_STATUS",
+        });
+      }
+      where.status = upperStatus;
+    }
+
+    // 예약자(User) 정보 include
+    const include = [
+      {
+        model: models.user,
+        attributes: ["id", "name", "phone", "email"],
+        required: false,
+      },
+    ];
+
+    // keyword 그대로 비교 (정확 일치)
+    // 환자 이름 또는 전화번호 정확 일치
+    if (keyword) {
+      where[Op.or] = [
+        { patient_name: keyword },
+        { patient_phone: keyword },
+      ];
+    }
+
+
+    // 날짜 필터링
+    if (startDate || endDate) {
+      where.reserved_date = {};
+      if (startDate) where.reserved_date[Op.gte] = startDate; // startDate 이후
+      if (endDate) where.reserved_date[Op.lte] = endDate;     // endDate 이전
+    }
+
+    // 예약 조회
+    const { count, rows } = await models.reservation.findAndCountAll({
+      where,
+      include,
+      order: [["created_at", "DESC"]],
+      limit,
+      offset,
+    });
+
+    return res.status(200).json({
+      Message: "기관 예약 목록 조회 성공",
+      ResultCode: "SUCCESS",
+      Pagination: {
+        totalItems: count,
+        currentPage: page,
+        totalPages: Math.ceil(count / limit),
+        pageSize: limit,
+      },
+      data: rows,
+    });
+
+  } catch (err) {
+    console.error('getFacilityReservations error:', err);
+    return res.status(500).json({
+      Message: '서버 에러',
+      ResultCode: 'ERR_SERVER',
+      Error: err.message || err.toString(),
+    });
+  }
+}
+
+// 2. 기관의 특정 예약 상세 조회
+// GET /facilities/:facilityId/dashboard/reservations/:reservationId
+async function getFacilityReservationDetail(req, res) {
+  try {
+    const staff = req.session.user; // 이미 requireRole에서 체크됨
+    const facilityId = parseInt(req.params.facilityId, 10);
+    const reservationId = parseInt(req.params.reservationId, 10);
+
+    // 파라미터 체크
+    if (isNaN(facilityId) || isNaN(reservationId)) {
+      return res.status(400).json({
+        Message: "유효하지 않은 파라미터",
+        ResultCode: "ERR_INVALID_PARAMETER",
+      });
+    }
+ 
+    // 1. 해당 기관의 직원인지 체크
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({ 
+        Message: "해당 기관의 직원이 아닙니다.", 
+        ResultCode: "ERR_FORBIDDEN" 
+      });
+    }
+
+    // 2. 예약 조회 (직원의 기관에 속한 예약만)
+    const reservation = await models.reservation.findOne({
+      where: { id: reservationId, facility_id: facilityId },
+      include: [
+        { model: models.user, attributes: ["id","name","phone"] },
+        { model: models.facility, attributes: ["id","name"] },
+      ],
+    });
+
+    if (!reservation) return res.status(404).json({ Message: "예약 없음", ResultCode: "ERR_NOT_FOUND" });
+
+    // 3. 응답 포맷
+    const responseData = {
+      reservation: {
+        id: reservation.id,
+        reserved_date: reservation.reserved_date,
+        reserved_time: reservation.reserved_time,
+        status: reservation.status,
+      },
+      patient: {
+        name: reservation.patient_name,
+        birth: reservation.patient_birth,
+        gender: reservation.patient_gender,
+        phone: reservation.patient_phone,
+        disease_type: reservation.disease_type,
+        notes: reservation.notes,
+      },
+      reservation_user: {
+        id: reservation.user.id,
+        name: reservation.user.name,
+        phone: reservation.user.phone,
+      },
+      facility: {
+        id: reservation.facility.id,
+        name: reservation.facility.name,
+      },
+    };
+
+    return res.status(200).json({ 
+      Message: "조회 성공", 
+      ResultCode: "SUCCESS", 
+      data: responseData 
+    });
+
+  } catch (err) {
+    console.error('getFacilityReservationDetail error:', err);
+    return res.status(500).json({
+      Message: '서버 에러',
+      ResultCode: 'ERR_SERVER',
+      Error: err.message || err.toString(),
+    });
+  }
+}
+
+// 3. 기관의 예약 승인/거절
+// PATCH /facilities/:facilityId/dashboard/reservations/:reservationId/:status
+async function updateFacilityReservationStatus(req, res) {
+  try {
+    const staff = req.session.user; // requireRole에서 이미 로그인/권한 체크
+    const facilityId = parseInt(req.params.facilityId, 10);
+    const reservationId = parseInt(req.params.reservationId, 10);
+    const status = req.params.status.toUpperCase();
+
+    // 유효한 status만 허용
+    const validStatuses = ['CONFIRMED', 'REJECTED'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        Message: '유효하지 않은 상태값입니다.',
+        ResultCode: 'ERR_INVALID_STATUS',
+      });
+    }
+
+    // 직원 소속 기관 확인
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({
+        Message: "해당 기관의 직원이 아닙니다.", 
+        ResultCode: 'ERR_FORBIDDEN',
+      });
+    }
+
+    // 예약 조회
+    const reservation = await models.reservation.findOne({
+      where: { id: reservationId, facility_id: facilityId },
+    });
+
+    if (!reservation) {
+      return res.status(404).json({
+        Message: '예약 없음',
+        ResultCode: 'ERR_NOT_FOUND',
+      });
+    }
+
+    // 현재 상태가 PENDING이 아니면 변경 불가
+    if (reservation.status !== 'PENDING') {
+      return res.status(400).json({
+        Message: '해당 건은 이미 처리된 예약입니다.',
+        ResultCode: 'ERR_INVALID_STATE',
+      });
+    }
+    // 상태 변경
+    reservation.status = status;
+    await reservation.save();
+
+    return res.status(200).json({
+      Message: `예약 ${status === 'CONFIRMED' ? '승인' : '거절'} 완료`,
+      ResultCode: 'SUCCESS',
+      reservationId: reservation.id,
+      updatedStatus: reservation.status,
+      updatedAt: reservation.updated_at.toISOString(), 
+    });
+
+  } catch (err) {
+    console.error('updateReservationStatus error:', err);
+    return res.status(500).json({
+      Message: '서버 에러',
+      ResultCode: 'ERR_SERVER',
+      Error: err.message,
+    });
+  }
+}
 
 module.exports = { 
     createReservation,
     getReservations,
     getReservationDetail,
-    cancelReservation
+    cancelReservation,
+
+    getFacilityReservations,
+    getFacilityReservationDetail,
+    updateFacilityReservationStatus
 };

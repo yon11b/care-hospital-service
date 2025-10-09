@@ -56,6 +56,6 @@ router.patch(
   updateReview
 ); // 리뷰 수정
 router.delete("/:facilityId/:reviewId", authMiddleware, deleteReview); // 리뷰 삭제
-//router.post("/:reviewId/report", authMiddleware, reportReview); // 리뷰 신고
+router.post("/:reviewId/report", authMiddleware, reportReview); // 리뷰 신고
 
 module.exports = router;
