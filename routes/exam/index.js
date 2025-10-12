@@ -13,8 +13,8 @@ const {
   gradeRepetition,
   gradeThreeStepCommand,
   gradeConstructionalAbility,
-  gradeJugment,
-  saveScore,
+  gradeJudgment,
+  dementia,
 } = require("./dementia");
 const { skin_analysis } = require("./skin_analysis");
 
@@ -22,17 +22,13 @@ router.post("/skin-analysis", upload.single("image"), skin_analysis);
 
 router.post("/dementia/time", gradeTimeOrientation);
 router.post("/dementia/place", gradePlaceOrientation);
-router.post(
-  "/dementia/registration",
-  upload.single("audioFile"),
-  gradeRegistration
-);
+router.post("/dementia/registration", gradeRegistration);
 router.post("/dementia/seven", gradeSerialSevens);
 router.post("/dementia/delay", gradeDelayedRecall);
-router.post("/dementia/naming", upload.single("audioFile"), gradeNaming);
-router.post("/dementia/repeat", upload.single("audioFile"), gradeRepetition);
+router.post("/dementia/naming", gradeNaming);
+router.post("/dementia/repeat", gradeRepetition);
 router.post("/dementia/three", gradeThreeStepCommand);
 router.post("/dementia/construct", gradeConstructionalAbility);
-router.post("/dementia/judge", gradeJugment);
-router.post("/dementia/save", saveScore);
+router.post("/dementia/judge", gradeJudgment);
+router.post("/dementia", dementia);
 module.exports = router;
