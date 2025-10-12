@@ -53,6 +53,8 @@ module.exports = (sequelize, DataTypes) => {
         user.hasMany(models.review, { foreignKey: 'user_id', sourceKey: 'id', onDelete: 'SET NULL' });
         // user (1:N) community
         user.hasMany(models.community, { foreignKey: 'user_id', sourceKey: 'id', onDelete: 'SET NULL' });
+        // user ↔ facility (likes)
+        user.belongsToMany(models.facility, { through: models.like, foreignKey: 'user_id', otherKey: 'facility_id' });
     }; 
     
     return user; 

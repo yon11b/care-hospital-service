@@ -9,9 +9,8 @@ router.use("/facilities", require("./facility"));
 router.use("/user", require("./user"));
 router.use("/voice", require("./voice"));
 
-router.use("/community", require("./community"));
-router.use("/user", require("./user"));
-router.use("/reviews", require("./reviews"));
+router.use('/community', require('./community')); 
+router.use('/reviews', require('./reviews')); 
+router.use('/admin', require('./admin')); 
 router.use("/exam", require("./exam"));
-
 module.exports = router;

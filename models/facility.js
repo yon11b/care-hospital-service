@@ -1,4 +1,5 @@
 
+
 module.exports = (sequelize, DataTypes) => {
   const facility = sequelize.define(
     "facility",
@@ -103,6 +104,7 @@ module.exports = (sequelize, DataTypes) => {
     facility.hasMany(models.review, { foreignKey: 'facility_id', sourceKey: 'id' });
     facility.hasMany(models.reservation, { foreignKey: 'facility_id' });
   
+    facility.belongsToMany(models.user, { through: models.like, foreignKey: 'facility_id', otherKey: 'user_id' });
   };
 
   return facility;

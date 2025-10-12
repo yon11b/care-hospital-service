@@ -4,8 +4,8 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const axios = require('axios');
-const models = require('../../../models'); // user, user_sns
-const { generateToken, generateRefreshToken } = require('../../../middleware/auth');
+const models = require('../../models'); // user, user_sns
+const { generateToken, generateRefreshToken } = require('../../middleware/auth');
 const { sequelize } = models; // 트랜잭션 사용
 
 
@@ -161,16 +161,10 @@ async function handleCallback(req, res, provider) {
     }
 }
 
-// 각 sns callback 라우트
-// 1. 네이버
-router.get('/naver/callback', async (req, res) => handleCallback(req, res, 'naver'));
-//router.get('/kakao/callback', async (req, res) => handleCallback(req, res, 'kakao'));
-//router.get('/google/callback', async (req, res) => handleCallback(req, res, 'google'));
-
 
 // Refresh token으로 JWT 재발급
 // Access Token 만료 시 클라이언트에서 호출
-router.post('/refresh-token', async (req, res) => {
+async function refreshToken(req, res) {
 
     const { refreshToken } = req.body;
 
@@ -191,6 +185,10 @@ router.post('/refresh-token', async (req, res) => {
         message : "새로운 jwt token 발급",
         token 
     });
-});
+}
 
-module.exports = router;
+
+module.exports = {
+	handleCallback,
+    refreshToken
+};

@@ -41,13 +41,14 @@ const {
   createCommunity, 
   updateCommunity, 
   deleteCommunity,
-
+  reportCommunity   
+} = require('./community');
+const {  
   createComment,
   updateComment,
   deleteComment,
-
-} = require('./community');
-
+  reportComment
+} = require('./comment');
 
 router.get('/', getCommunities); // 전체 글 조회
 router.get('/:communityId', getCommunity);// 글 하나 조회
@@ -56,9 +57,11 @@ const communityUpload = upload.array('images', 4)
 router.post('/', authMiddleware, communityUpload, createCommunity);// 글 작성
 router.patch('/:communityId', authMiddleware, communityUpload, updateCommunity); // 글 수정
 router.delete('/:communityId', authMiddleware, deleteCommunity); // 글 삭제
+router.post('/:communityId/report', authMiddleware, reportCommunity ); // 글 신고
 
 router.post('/:communityId/comment', authMiddleware, createComment ); // 댓글 작성
 router.patch('/:communityId/comment/:commentId', authMiddleware, updateComment ); // 댓글 수정
 router.delete('/:communityId/comment/:commentId', authMiddleware, deleteComment ); // 댓글 삭제
+router.post('/:communityId/comment/:commentId/report', authMiddleware, reportComment ); // 댓글 신고
 
 module.exports = router;
