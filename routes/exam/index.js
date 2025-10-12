@@ -18,6 +18,7 @@ const {
 } = require("./dementia");
 const { skin_analysis } = require("./skin_analysis");
 
+const { authMiddleware } = require("../../middleware/authMiddleware.js");
 router.post("/skin-analysis", upload.single("image"), skin_analysis);
 
 router.post("/dementia/time", gradeTimeOrientation);
@@ -30,5 +31,5 @@ router.post("/dementia/repeat", gradeRepetition);
 router.post("/dementia/three", gradeThreeStepCommand);
 router.post("/dementia/construct", gradeConstructionalAbility);
 router.post("/dementia/judge", gradeJudgment);
-router.post("/dementia", dementia);
+router.post("/dementia", authMiddleware, dementia);
 module.exports = router;
