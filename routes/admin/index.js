@@ -24,6 +24,9 @@ const {
     getFacilitiesList,
     getFacilityStaffs
 } = require("./member.js");
+const {
+    getReservationStatistics,
+} = require("./statistics.js");
 
 // 1. 신고 관련 기능     
 // admin 로그인 세션 확인 -> 미들웨어(requireRole)로 체크
@@ -43,10 +46,7 @@ router.get('/members/staffs', requireRole("admin"), getStaffsList); // 회원(�
 router.get('/members/facilities', requireRole("admin"), getFacilitiesList); 
 router.get('/members/facilities/:facilityId', requireRole("admin"), getFacilityStaffs); 
 
-// GET /admin/members/staffs
-// GET /admin/members/facilities
-// GET /admin/members/facilities/:facilityId
-
-
+// 4. 통계
+router.get('/statistics/reservations', requireRole("admin"), getReservationStatistics);
 
 module.exports = router;
