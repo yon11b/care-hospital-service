@@ -1,21 +1,74 @@
 const models = require("../../models");
-const { sequelize } = require("../../models");
 const { Op } = require("sequelize");
-
+const sequelize = models.sequelize; 
 
 // ========================================
 // 1. 통계 
 // ========================================
 // 1-1. 월별 신규/총 이용자(보호자/환자) 수 
-// GET/admin/statistics/monthly-users
+// GET /admin/statistics/monthly-users
+async function getMonthlyUsers(req, res) {
+  try {
+    // 관리자 로그인 및 권한 체크는 미들웨어에서 처리됨
 
+    // 전체 사용자 기준 월별 신규 통계
+    const monthlyStats = await models.user.findAll({
+      attributes: [
+        [sequelize.fn('TO_CHAR', sequelize.col('created_at'), 'YYYY-MM'), 'month'],
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+      ],
+      group: ['month'],
+      order: [[sequelize.col('month'), 'ASC']],
+      raw: true
+    });
 
+    // 총 사용자 수
+    const totalUsers = await models.user.count();
 
-// 1-2. 월별 등록 신규 기관 / 총 등록된 기관 수 / 총 가입한 직원(대표/직원) 수
-// GET/admin/statistics/monthly-facilities
+    // 통계 시작 달과 마지막 달 계산
+    const months = monthlyStats.map(item => item.month);
+    const firstMonth = months[0] || new Date().toISOString().slice(0, 7); // 첫 등록 달
+    const lastMonth = new Date().toISOString().slice(0, 7); // 현재 달
 
+    // 빈 달 포함하기
+    const allMonths = [];
+    let [year, month] = firstMonth.split('-').map(Number);
+    const [lastYear, lastMonthNum] = lastMonth.split('-').map(Number);
 
-// 1-3. 예약 현황 조회
+    while (year < lastYear || (year === lastYear && month <= lastMonthNum)) {
+      const m = `${year}-${String(month).padStart(2, '0')}`;
+      allMonths.push(m);
+      month++;
+      if (month > 12) {
+        month = 1;
+        year++;
+      }
+    }
+
+    // 결과 정리
+    const result = {};
+    allMonths.forEach(m => {
+      const found = monthlyStats.find(item => item.month === m);
+      result[m] = found ? Number(found.count) : 0;
+    });
+
+    res.json({
+      Message: '월별 신규/총 이용자 수 조회 성공',
+      ResultCode: 'SUCCESS',
+      totalUsers,
+      monthlyStats: result
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      Message: "월별 사용자 통계 조회 실패",
+      ResultCode: 'ERR_INTERNAL_SERVER',
+      error: err.message
+    });
+  }
+}
+// 1-2. 예약 현황 조회
 // GET /admin/statistics/reservations
 // 전체 예약 수, 취소 수, 완료 수 등 요약
 async function getReservationStatistics(req, res) {
@@ -74,6 +127,8 @@ async function getReservationStatistics(req, res) {
     });
 
     res.json({
+      Message: '예약 현황 조회 성공',
+      ResultCode: 'SUCCESS',
       filters: { startDate, endDate },
       summary: {
         totalCount,
@@ -87,7 +142,11 @@ async function getReservationStatistics(req, res) {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: '예약 통계 조회 실패', error });
+    res.status(500).json({ 
+      Message: '예약 통계 조회 실패',
+      ResultCode: 'ERR_INTERNAL_SERVER',       
+      error 
+    });
   }
 };
 
@@ -95,12 +154,9 @@ async function getReservationStatistics(req, res) {
 // GET /admin/statistics/chat
 
 
-// 1-5. 신고 현황 
-// 월별 신고 수, 누적 신고 수, 처리 수? 
-
-
 
 module.exports = { 
     getReservationStatistics,
-
+    getMonthlyUsers,
+    
 };

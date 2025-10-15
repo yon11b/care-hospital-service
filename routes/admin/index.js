@@ -26,6 +26,9 @@ const {
 } = require("./member.js");
 const {
     getReservationStatistics,
+    getMonthlyUsers,
+
+
 } = require("./statistics.js");
 
 // 1. 신고 관련 기능     
@@ -48,5 +51,6 @@ router.get('/members/facilities/:facilityId', requireRole("admin"), getFacilityS
 
 // 4. 통계
 router.get('/statistics/reservations', requireRole("admin"), getReservationStatistics);
+router.get('/statistics/monthly-users', requireRole("admin"), getMonthlyUsers);
 
 module.exports = router;
