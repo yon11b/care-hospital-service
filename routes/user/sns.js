@@ -18,7 +18,13 @@ const SNS_CONFIG = {
         tokenUrl: 'https://nid.naver.com/oauth2.0/token',
         profileUrl: 'https://openapi.naver.com/v1/nid/me',
     },    
-    // kakao:{},
+    kakao:{
+        clientId: process.env.KAKAO_CLIENT_ID,
+        clientSecret: process.env.KAKAO_CLIENT_SECRET,
+        redirectUri: process.env.KAKAO_REDIRECT_URI_MOBILE,   
+        tokenUrl:"https://kauth.kakao.com/oauth/token",
+        profileUrl: "https://kapi.kakao.com/v2/user/me"        
+    },
     // google:{}
 }
 
@@ -31,7 +37,7 @@ async function getAccessToken(provider, code) {
 
     switch(provider){
         case 'naver':
-            const res = await axios.get(config.tokenUrl, { 
+            const naverRes = await axios.get(config.tokenUrl, { 
                 params: {
                     grant_type: 'authorization_code',
                     client_id: config.clientId,
@@ -40,9 +46,21 @@ async function getAccessToken(provider, code) {
                     redirect_uri: config.redirectUri, 
                 }
             });
-            return res.data.access_token;
-        //case 'kakao':
-        
+            return naverRes.data.access_token;
+
+        case 'kakao':
+            const kakaoRes = await axios.post(config.tokenUrl, null, {
+                params: {
+                    grant_type: "authorization_code",
+                    client_id: config.clientId,
+                    client_secret: config.clientSecret,
+                    code,
+                    redirect_uri: config.redirectUri, 
+                },
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            });
+            return kakaoRes.data.access_token;
+
         //case 'google':
 
         default:
@@ -66,7 +84,16 @@ async function getProfile(provider, accessToken) {
                 email: naverProfile.email || null, // 이메일
                 phone: naverProfile.mobile || null // 전화번호
             };
-        //case 'kakao':
+
+        case 'kakao':
+            const kakaoProfile = res.data;
+            return{
+                id: kakaoProfile.id,
+                name: kakaoProfile.kakao_account?.profile?.nickname || null, // 비즈니스 앱 필요 (본명)
+                email: kakaoProfile.kakao_account?.email || null,
+                phone: kakaoProfile.kakao_account?.phone_number || null // 비즈니스 앱 필요
+            }
+            
         //case 'google':
         default:
             throw new Error('getProfile - Unsupported provider');
@@ -88,7 +115,10 @@ async function handleCallback(req, res, provider) {
 
         // (3) DB 조회 (user_sns 테이블 활용)
         let snsInstance = await models.user_sns.findOne({
-            where: { provider, sns_id: profile.id },
+            where: { 
+                provider, 
+                sns_id: profile.id.toString() 
+            },
             include: models.user // user 정보 포함
         });
 
@@ -110,7 +140,7 @@ async function handleCallback(req, res, provider) {
                     {
                         user_id: userInstance.id,
                         provider,
-                        sns_id: profile.id,
+                        sns_id: profile.id.toString(),
                         refresh_token: generateRefreshToken() // refresh token 발급
                     }, 
                     {transaction: t}
