@@ -42,6 +42,7 @@ router.post('/:userId/favorites/:facilityId', authMiddleware, toggleFavorite);
 // 각 sns callback 라우트
 router.get('/sns/login/naver/callback', (req, res) => handleCallback(req, res, 'naver'));
 router.get('/sns/login/kakao/callback', (req, res) => handleCallback(req, res, 'kakao'));
+router.get('/sns/login/google/callback', (req, res) => handleCallback(req, res, 'google'));
 
 
 // refresh token 재발급

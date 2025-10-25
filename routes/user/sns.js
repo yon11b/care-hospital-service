@@ -7,7 +7,7 @@ const axios = require('axios');
 const models = require('../../models'); // user, user_sns
 const { generateToken, generateRefreshToken } = require('../../middleware/auth');
 const { sequelize } = models; // 트랜잭션 사용
-
+const { Op } = require('sequelize');
 
 // SNS별 설정
 const SNS_CONFIG = {
@@ -25,7 +25,13 @@ const SNS_CONFIG = {
         tokenUrl:"https://kauth.kakao.com/oauth/token",
         profileUrl: "https://kapi.kakao.com/v2/user/me"        
     },
-    // google:{}
+    google:{
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        redirectUri: process.env.GOOGLE_REDIRECT_URI_MOBILE,  
+        tokenUrl: "https://oauth2.googleapis.com/token",
+        profileUrl:"https://www.googleapis.com/oauth2/v3/userinfo",
+    }
 }
 
 // Access Token 발급 함수
@@ -50,6 +56,9 @@ async function getAccessToken(provider, code) {
 
         case 'kakao':
             const kakaoRes = await axios.post(config.tokenUrl, null, {
+                headers: { 
+                    "Content-Type": "application/x-www-form-urlencoded" 
+                },
                 params: {
                     grant_type: "authorization_code",
                     client_id: config.clientId,
@@ -57,11 +66,23 @@ async function getAccessToken(provider, code) {
                     code,
                     redirect_uri: config.redirectUri, 
                 },
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
             });
             return kakaoRes.data.access_token;
 
-        //case 'google':
+        case 'google':
+            const googleRes = await axios.post(config.tokenUrl, null, {
+                headers: { 
+                    "Content-Type": "application/x-www-form-urlencoded" 
+                },
+                params: {
+                    grant_type: "authorization_code",
+                    client_id: config.clientId,
+                    client_secret: config.clientSecret,
+                    code,
+                    redirect_uri: config.redirectUri,  
+                }
+            })
+            return googleRes.data.access_token;
 
         default:
             throw new Error('getAccessToken - Unsupported provider');
@@ -93,8 +114,16 @@ async function getProfile(provider, accessToken) {
                 email: kakaoProfile.kakao_account?.email || null,
                 phone: kakaoProfile.kakao_account?.phone_number || null // 비즈니스 앱 필요
             }
-            
-        //case 'google':
+        
+        case 'google':
+            const googleProfile = res.data;
+            return{
+                id: googleProfile.sub,
+                name: googleProfile.name || null,   // 이름
+                email: googleProfile.email || null, // 이메일
+                phone: null, 
+            }
+
         default:
             throw new Error('getProfile - Unsupported provider');
 
@@ -107,10 +136,10 @@ async function handleCallback(req, res, provider) {
     const { code } = req.query; // 앱에서 받은 인증 코드
 
     try {
-        // (1) code → access token (받아 온 코드를 이용해 토큰 발급)
+        // (1) code → access token (받아 온 코드를 이용해 sns 서버에서 토큰 발급)
         const accessToken = await getAccessToken(provider, code);
 
-        // (2) access token → 프로필 조회
+        // (2) access token → sns별 프로필 조회
         const profile = await getProfile(provider, accessToken);
 
         // (3) DB 조회 (user_sns 테이블 활용)
@@ -123,28 +152,23 @@ async function handleCallback(req, res, provider) {
         });
 
         let userInstance;
-        await sequelize.transaction(async (t) =>{
+        await sequelize.transaction(async (t) => {
             if (!snsInstance) {
-                // 신규 회원가입
-                userInstance = await models.user.create(
-                    {
-                        name: profile.name || null,     // 이름(본명)
-                        email: profile.email || null,   // 이메일
-                        phone: profile.phone || null    // 전화번호
-                    }, 
-                    {transaction: t}
-            );
+                // 신규 user 생성
+                userInstance = await models.user.create({
+                    name: profile.name || null,
+                    email: profile.email || null,
+                    phone: profile.phone || null
+                }, { transaction: t });
 
-                // sns 계정 정보 저장
-                snsInstance = await models.user_sns.create(
-                    {
-                        user_id: userInstance.id,
-                        provider,
-                        sns_id: profile.id.toString(),
-                        refresh_token: generateRefreshToken() // refresh token 발급
-                    }, 
-                    {transaction: t}
-                );  
+                // user_sns 연결 및 refresh token 발급
+                snsInstance = await models.user_sns.create({
+                    user_id: userInstance.id,
+                    provider,
+                    sns_id: profile.id.toString(),
+                    refresh_token: generateRefreshToken()
+                }, { transaction: t });
+
             } else {
                 // 기존 사용자 로그인 -> refresh token 갱신
                 userInstance = snsInstance.user;
