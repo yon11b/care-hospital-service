@@ -29,7 +29,7 @@ const {
 } = require("./sns")
 
 router.get("/session", getSession);
-router.post("/", upsertUser);
+router.post("/register", upsertUser);
 router.post("/approveFacility", approveFacility);
 router.post("/login", login);
 router.post("/logout", logout);
