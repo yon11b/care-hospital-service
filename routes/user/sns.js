@@ -34,17 +34,35 @@ const SNS_CONFIG = {
     }
 }
 
-// 서버에서 네이버 로그인 페이지 url 생성
-// 앱에서 로그인 버튼을 클릭하면 네이버 로그인 페이지로 리다이렉트되도록 한다.
-async function makeNaverAuthUrl(req, res) {
-    const state = Math.random().toString(36).substring(2, 15); // CSRF 방지
+// 서버에서 로그인 페이지 url 생성
+// 앱에서 로그인 버튼을 클릭하면 로그인 페이지로 리다이렉트되도록 한다.
+// 공통 SNS 로그인 URL 생성
+async function makeSnsAuthUrl(req, res) {
+    const { provider } = req.params; // 'naver', 'kakao', 'google'
+    const config = SNS_CONFIG[provider];
+    if (!config) return res.status(400).json({ message: "Unsupported provider" });
 
-    // 1. 네이버 로그인 URL 생성
-    const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${SNS_CONFIG.naver.clientId}&redirect_uri=${encodeURIComponent(SNS_CONFIG.naver.redirectUri)}&state=${state}`;
-    // 2. 네이버 로그인 페이지로 리다이렉트 
-    res.redirect(naverAuthUrl);
+    const state = Math.random().toString(36).substring(2, 15);
+
+    let url;
+
+    switch(provider) {
+        case 'naver':
+            url = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${config.clientId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&state=${state}`;
+            break;
+        case 'kakao':
+            url = `https://kauth.kakao.com/oauth/authorize?response_type=code&client_id=${config.clientId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&state=${state}`;
+            break;
+        case 'google':
+            const scope = encodeURIComponent("openid email profile");
+            url = `https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${config.clientId}&redirect_uri=${encodeURIComponent(config.redirectUri)}&state=${state}&scope=${scope}`;
+            break;
+        default:
+            return res.status(400).json({ message: "Unsupported provider" });
+    }
+
+    res.redirect(url);
 }
-
 
 // Access Token 발급 함수
 // 앱에서 전달받은 code -> SNS 서버에서 access token 발급
@@ -55,50 +73,58 @@ async function getAccessToken(provider, code) {
 
     switch(provider){
         case 'naver':
-            const naverRes = await axios.get(config.tokenUrl, { 
-                params: {
+            const naverRes = await axios.post(
+                config.tokenUrl,
+                new URLSearchParams({
                     grant_type: 'authorization_code',
                     client_id: config.clientId,
                     client_secret: config.clientSecret,
                     code,
-                    redirect_uri: config.redirectUri, 
+                    redirect_uri: config.redirectUri
+                }).toString(),
+                {
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    }
                 }
-            });
+            );
             return naverRes.data.access_token;
 
         case 'kakao':
-            const kakaoRes = await axios.post(config.tokenUrl, null, {
-                headers: { 
-                    "Content-Type": "application/x-www-form-urlencoded" 
-                },
-                params: {
+            const kakaoRes = await axios.post(
+                config.tokenUrl,
+                new URLSearchParams({
                     grant_type: "authorization_code",
                     client_id: config.clientId,
                     client_secret: config.clientSecret,
                     code,
-                    redirect_uri: config.redirectUri, 
-                },
-            });
+                    redirect_uri: config.redirectUri
+                }).toString(),
+                {
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" }
+                }
+            );
             return kakaoRes.data.access_token;
 
         case 'google':
-            const googleRes = await axios.post(config.tokenUrl, null, {
-                headers: { 
-                    "Content-Type": "application/x-www-form-urlencoded" 
-                },
-                params: {
+            const googleRes = await axios.post(
+                config.tokenUrl,
+                new URLSearchParams({
                     grant_type: "authorization_code",
                     client_id: config.clientId,
                     client_secret: config.clientSecret,
                     code,
-                    redirect_uri: config.redirectUri,  
+                    redirect_uri: config.redirectUri
+                }).toString(),
+                {
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" }
                 }
-            })
+            );
             return googleRes.data.access_token;
 
         default:
             throw new Error('getAccessToken - Unsupported provider');
- 
+
     }
 }
 
@@ -256,7 +282,7 @@ async function refreshToken(req, res) {
 
 
 module.exports = {
-    makeNaverAuthUrl,
+    makeSnsAuthUrl, 
 	handleCallback,
     refreshToken
 };

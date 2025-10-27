@@ -24,7 +24,7 @@ const {
   toggleFavorite
 } = require("./favorite")
 const {
-  makeNaverAuthUrl,
+  makeSnsAuthUrl,
 	handleCallback,
   refreshToken
 } = require("./sns")
@@ -40,16 +40,12 @@ router.get('/:userId/favorites', authMiddleware, getfavorites);
 router.post('/:userId/favorites/:facilityId', authMiddleware, toggleFavorite);
 
 
-// 1. 앱에서 네이버 로그인 버튼 클릭 → /sns/login/naver 호출
-// 네이버 로그인 버튼 클릭
-router.get('/sns/login/naver', makeNaverAuthUrl)
-
+// 앱에서 로그인 버튼 클릭 → 로그인 페이지로 리다이렉트  
+router.get('/sns/login/:provider',makeSnsAuthUrl) 
 // 각 sns callback 라우트
 router.get('/sns/login/naver/callback', (req, res) => handleCallback(req, res, 'naver'));
 router.get('/sns/login/kakao/callback', (req, res) => handleCallback(req, res, 'kakao'));
 router.get('/sns/login/google/callback', (req, res) => handleCallback(req, res, 'google'));
-
-
 // refresh token 재발급
 router.post('/sns/login/refresh-token', refreshToken); // Refresh token 재발급 (POST)
 
