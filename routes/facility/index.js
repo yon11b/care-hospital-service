@@ -55,8 +55,9 @@ const {
   updateFacilityReservationStatus
 } = require("./reservation");
 const {
-   createAd,
-   updateAd,
+  createAd,
+  updateAd,
+  getAdDetail,
 
 } = require("./advertiesment");
 
@@ -101,6 +102,7 @@ router.patch('/:facilityId/dashboard/reservations/:reservationId/:status', requi
 // =======================
 // 기관의 광고 신청 관련 기능
 // =======================
+router.get('/:facilityId/dashboard/advertisements/:adId', requireRole(["staff", "owner"]), getAdDetail); // 기관의 광고 상세 조회
 router.post("/:facilityId/dashboard/advertisements", requireRole(["staff", "owner"]), createAd) // 기관의 광고 신청
 router.patch("/:facilityId/dashboard/advertisements/:adId", requireRole(["staff", "owner"]), updateAd) // 기관의 광고 수정
 

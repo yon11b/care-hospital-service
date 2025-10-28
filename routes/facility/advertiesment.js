@@ -79,8 +79,98 @@ async function createAd(req, res) {
   }
 }
 
-// 2. 광고 목록 조회
-// 3. 광고 상세 조회
+// 한국 시간으로 바꾸기 (YYYY-MM-DD HH:mm:ss)
+function formatDateKST(date) {
+  if (!date) return null;
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const seconds = String(d.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+// 2. 광고 목록 조회 (전체)
+// GET /facilities/{facilityId}/dashboard/advertisements
+
+
+// 3. 광고 상세 조회 (1개)
+// GET /facilities/{facilityId}/dashboard/advertisements/{adId}
+async function getAdDetail(req, res) {
+  try {
+    const staff = req.session.user; // 이미 requireRole에서 체크됨
+    const facilityId = parseInt(req.params.facilityId, 10);
+    const adId = parseInt(req.params.adId, 10);
+
+    if (isNaN(facilityId) || isNaN(adId)) {
+      return res.status(400).json({
+        Message: "유효하지 않은 파라미터",
+        ResultCode: "ERR_INVALID_PARAMETER",
+      });
+    }
+
+    // 해당 기관의 직원인지 체크
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({ 
+        Message: "해당 기관의 직원이 아닙니다.", 
+        ResultCode: "ERR_FORBIDDEN" 
+      });
+    }
+
+    // 광고 조회 (기관 정보 포함)
+    const ad = await models.advertisement.findOne({
+      where: { id: adId, facility_id: facilityId },
+      include: [
+        {
+          model: models.facility,
+          attributes: ['id', 'name', 'address', 'telno', 'kind']
+        }
+      ]
+    });
+
+    if (!ad) {
+      return res.status(404).json({
+        Message: "해당 광고를 찾을 수 없습니다.",
+        ResultCode: "NOT_AD_FOUND",
+      });
+    }
+
+    // 결과 생성
+    const adDetail = {
+      id: ad.id,
+      description: ad.description,
+      approval_status: ad.approval_status,
+      start_date: formatDateKST(ad.start_date),
+      end_date: formatDateKST(ad.end_date),
+      approved_at: formatDateKST(ad.approved_at),
+      facility: ad.facility ? {
+        id: ad.facility.id,
+        name: ad.facility.name,
+        address: ad.facility.address,
+        telno: ad.facility.telno,
+        kind: ad.facility.kind,
+      } : null,
+    };
+
+    // 성공 응답
+    res.status(200).json({
+      Message: "광고 상세 조회 성공",
+      ResultCode: "SUCCESS",
+      data: adDetail,
+    });
+
+  } catch (err) {
+    //bad request
+    console.log("기관 측에서 광고 상세 조회:",err);
+    res.status(500).send({
+      Message: "광고 상세 조회 중 오류가 발생했습니다.",
+      ResultCode: "ERR_SERVER",
+      msg: err.toString(),
+    });
+  }
+}
 
 // 4. 기관 측에서 광고 수정
 // PATCH /facilities/{facilityId}/dashboard/advertisements/{adId}
@@ -164,11 +254,9 @@ async function updateAd(req, res) {
   }
 }
 
-// 5. 광고 신청 취소
-
 module.exports = {
     createAd,
     updateAd,
-
+    getAdDetail,
 
 }
