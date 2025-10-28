@@ -54,6 +54,12 @@ const {
   getFacilityReservationDetail,
   updateFacilityReservationStatus
 } = require("./reservation");
+const {
+   createAd,
+   updateAd,
+
+} = require("./advertiesment");
+
 
 router.get("/:id", getFacility);
 router.get("/", getFacilities);
@@ -91,5 +97,12 @@ router.patch('/reservations/:reservationId', authMiddleware, cancelReservation);
 router.get('/:facilityId/dashboard/reservations', requireRole(["staff", "owner"]), getFacilityReservations); // 기관의 예약 조회
 router.get('/:facilityId/dashboard/reservations/:reservationId', requireRole(["staff", "owner"]), getFacilityReservationDetail); // 기관의 예약 상세 조회
 router.patch('/:facilityId/dashboard/reservations/:reservationId/:status', requireRole(["staff", "owner"]), updateFacilityReservationStatus); // 기관의 예약 승인/거절
+
+// =======================
+// 기관의 광고 신청 관련 기능
+// =======================
+router.post("/:facilityId/dashboard/advertisements", requireRole(["staff", "owner"]), createAd) // 기관의 광고 신청
+router.patch("/:facilityId/dashboard/advertisements/:adId", requireRole(["staff", "owner"]), updateAd) // 기관의 광고 수정
+
 
 module.exports = router;
