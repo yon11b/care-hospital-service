@@ -13,7 +13,7 @@ const {
     getReportDetail,
     handleReportApproved,
     handleReportRejected,
-} = require("./report.js");
+} = require("./report");
 const {
     addUserToBlacklist,
     removeUserFromBlacklist,
@@ -23,13 +23,18 @@ const {
     getStaffsList,
     getFacilitiesList,
     getFacilityStaffs
-} = require("./member.js");
+} = require("./member");
 const {
     getReservationStatistics,
     getMonthlyUsers,
 
 
-} = require("./statistics.js");
+} = require("./statistics");
+const {
+    getFacilityAds,
+    getFacilityAdsDetail,
+    approveOrRejectAd
+} = require("./advertisement");
 
 // 1. 신고 관련 기능     
 // admin 로그인 세션 확인 -> 미들웨어(requireRole)로 체크
@@ -52,5 +57,11 @@ router.get('/members/facilities/:facilityId', requireRole("admin"), getFacilityS
 // 4. 통계
 router.get('/statistics/reservations', requireRole("admin"), getReservationStatistics);
 router.get('/statistics/monthly-users', requireRole("admin"), getMonthlyUsers);
+
+// 5. 광고
+router.get('/advertisements', requireRole("admin"), getFacilityAds);
+router.get('/advertisements/:adId', requireRole("admin"), getFacilityAdsDetail);
+router.patch('/advertisements/:adId', requireRole("admin"), approveOrRejectAd);
+
 
 module.exports = router;

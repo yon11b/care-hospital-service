@@ -94,6 +94,73 @@ function formatDateKST(date) {
 
 // 2. 광고 목록 조회 (전체)
 // GET /facilities/{facilityId}/dashboard/advertisements
+async function getAds(req, res){
+  try {  
+    const staff = req.session.user; // 이미 requireRole에서 체크됨
+    const facilityId = parseInt(req.params.facilityId, 10);
+
+    // 쿼리에서 페이지, limit 받아오기 (기본값 설정)
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const offset = (page - 1) * limit;
+    const keyword = req.query.keyword || ""; 
+
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        Message: "유효하지 않은 파라미터",
+        ResultCode: "ERR_INVALID_PARAMETER",
+      });
+    }
+
+    // 해당 기관의 직원인지 체크
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({ 
+        Message: "해당 기관의 직원이 아닙니다.", 
+        ResultCode: "ERR_FORBIDDEN" 
+      });
+    }
+
+    // 광고 조회 (기관 정보 포함)
+    const { rows: ads, count: total } = await models.advertisement.findAndCountAll({
+      where: { 
+        facility_id: facilityId,
+        description: { [Op.iLike]: `%${keyword}%` } 
+      },
+      order: [['created_at', 'DESC']], // 최신순
+      limit,
+      offset
+    });
+
+    // 결과 생성
+    const data = ads.map(ad => ({
+      id: ad.id,
+      description: ad.description,
+      approval_status: ad.approval_status,
+      start_date: formatDateKST(ad.start_date),
+      end_date: formatDateKST(ad.end_date),
+      approved_at: formatDateKST(ad.approved_at),
+    }));    
+
+    // 성공 응답
+    res.status(200).json({
+      Message: "광고 목록 조회 성공",
+      ResultCode: "SUCCESS",
+      page,
+      limit,
+      total, // 전체 광고 개수
+      data
+    });
+
+  } catch (err) {
+    //bad request
+    console.log("기관 측에서 광고 상세 조회:",err);
+    res.status(500).send({
+      Message: "광고 상세 조회 중 오류가 발생했습니다.",
+      ResultCode: "ERR_SERVER",
+      msg: err.toString(),
+    });
+  }
+}
 
 
 // 3. 광고 상세 조회 (1개)
@@ -213,6 +280,14 @@ async function updateAd(req, res) {
       });
     }
 
+    // pending 상태만 수정 가능
+    if (ad.approval_status !== 'pending') {
+      return res.status(400).json({
+        Message: `이미 처리된 광고는 수정할 수 없습니다. 현재 상태: ${ad.approval_status}`,
+        ResultCode: "ERR_ALREADY_PROCESSED",
+      });
+    }    
+
     // 기존 값과 합쳐서 날짜 순서 체크
     const newStart = start_date ? new Date(start_date) : ad.start_date;
     const newEnd = end_date ? new Date(end_date) : ad.end_date;
@@ -257,6 +332,7 @@ async function updateAd(req, res) {
 module.exports = {
     createAd,
     updateAd,
+    getAds,
     getAdDetail,
 
 }
