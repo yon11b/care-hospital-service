@@ -169,7 +169,7 @@ async function getUsersList(req, res) {
 }
 // 2-2. 회원(사용자) 상세 조회
 // GET /admin/members/users/:userId
-async function getUserDetail (req, res) {
+async function getUserDetail(req, res) {
   try {
     const userId = parseInt(req.params.userId, 10);
     if (isNaN(userId)) {
@@ -179,105 +179,66 @@ async function getUserDetail (req, res) {
       });
     }
 
-    // 1. 기본 회원 정보 + 연결된 sns
-    const user = await models.user.findByPk(userId, {
-      attributes: ['id','name','email','phone','status','facilityLikes','currentLocation','created_at'],
+    // 1. 사용자 기본 정보 + 연결된 SNS
+    const userInfo = await models.user.findOne({
+      where: { id: userId },
       include: [
         {
           model: models.user_sns,
-          attributes: ['provider', 'sns_id'], // 어떤 SNS를 연결했는지
+          attributes: ['provider'],
+          required: false
         }
-      ]
+      ],
+      attributes: ['id', 'name', 'email', 'phone', 'status', 'created_at']
     });
 
-    if (!user) {
+    if (!userInfo) {
       return res.status(404).json({
         ResultCode: 'ERR_NOT_FOUND',
         Message: 'User not found'
       });
     }
 
-    // 2. 요약 정보 (예약수, 리뷰수, 평균 리뷰 점수, 댓글 수, 신고 한 횟수 )
-    const [reservationsCount, reviewsData, communityPostsCount, commentsCount, reportsCount] = await Promise.all([
+    // 2. 사용자 활동 통계 (Promise.all로 동시에 조회)
+    const [reservationCount, communityCount, commentCount, reviewStats] = await Promise.all([
       models.reservation.count({ where: { user_id: userId } }),
-      models.review.findAll({ 
-        where: { user_id: userId },
-        attributes: [
-          [models.sequelize.fn('COUNT', models.sequelize.col('id')), 'count'],
-          [models.sequelize.fn('AVG', models.sequelize.col('rating')), 'avgRating']
-        ],
-        raw: true
-      }),
       models.community.count({ where: { user_id: userId } }),
       models.comment.count({ where: { user_id: userId } }),
-      models.report.count({ where: { user_id: userId } }) // 신고한 횟수
+      models.review.findOne({
+        where: { user_id: userId },
+        attributes: [
+          [models.review.sequelize.fn('COUNT', models.review.sequelize.col('id')), 'count'],
+          [models.review.sequelize.fn('AVG', models.review.sequelize.col('rating')), 'avgRating']
+        ],
+        raw: true
+      })
     ]);
 
-    const reviewsCount = reviewsData[0]?.count || 0;
-    const reviewsAvgRating = parseFloat(reviewsData[0]?.avgRating || 0);
+    const reviewsCount = Number(reviewStats.count || 0);
+    const reviewsAvgRating = Number(reviewStats.avgRating || 0).toFixed(2);
 
-    // 3. 받은 신고 내역 (reports_received)
-    const reportsReceived = await models.report.findAll({
-      include: [
-        {
-          model: models.review,
-          required: false,
-          where: { user_id: userId },
-          attributes: []
-        },
-        {
-          model: models.community,
-          required: false,
-          where: { user_id: userId },
-          attributes: []
-        },
-        {
-          model: models.comment,
-          required: false,
-          where: { user_id: userId },
-          attributes: []
-        }
-      ],
-      order: [['created_at', 'DESC']],
-      limit: 5,
-      attributes: ['id','type','target_id','category','reason','status','created_at','resolved_at']
-    });
-
-    // 4. 받은 신고 총 개수
-    const reportsReceivedCount = await models.report.count({
-      include: [
-        { model: models.review, required: false, where: { user_id: userId } },
-        { model: models.community, required: false, where: { user_id: userId } },
-        { model: models.comment, required: false, where: { user_id: userId } }
-      ]
-    });
-
-    // 응답
-    res.json({
+    // 3. 응답 구성
+    res.status(200).json({
       ResultCode: 'OK',
       Message: 'User detail successfully',
       data: {
-        user,
+        user: userInfo,
         summary: {
-          reservations_count: reservationsCount, // 예약수
-          // 상담수
-          reviews_count: reviewsCount, // 리뷰 수
-          reviews_avg_rating: reviewsAvgRating, // 평균 평점
-          community_posts_count: communityPostsCount, // 커뮤니티 글 수
-          comments_count: commentsCount, // 댓글 수
-          reports_count: reportsCount, // 내가 신고한 수
-          reports_received_count: reportsReceivedCount // 신고 받은 총 횟수
-        },
-        reports_received: reportsReceived // 최근 내가 받은 신고 내역 5개
+          reservations_count: reservationCount,
+          reviews_count: reviewsCount,
+          reviews_avg_rating: reviewsAvgRating,
+          community_posts_count: communityCount,
+          comments_count: commentCount
+        }
       }
     });
 
   } catch (err) {
-    console.error('admin - getUserDetail err:', err.message);
+    console.error('admin - getUserDetail err:', err);
     res.status(500).json({
       Message: 'Internal server error',
       ResultCode: 'ERR_INTERNAL_SERVER',
-      msg: err.toString(),
+      msg: err.toString()
     });
   }
 }
