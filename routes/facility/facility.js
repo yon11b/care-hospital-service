@@ -11,6 +11,7 @@ async function getFacilities(req, res) {
     const latitude = parseFloat(req.query.latitude);
     const longitude = parseFloat(req.query.longitude);
     const keyword = req.query.keyword;
+    const kind = req.query.kind;
 
     //if (latitude && longitude) {
     const resp = await models.facility.findAll({
@@ -18,6 +19,7 @@ async function getFacilities(req, res) {
         longitude: { [Op.ne]: "" },
         latitude: { [Op.ne]: "" },
         ...(keyword && { name: { [Op.iLike]: `%${keyword}%` } }),
+        kind,
       },
       attributes:
         latitude && longitude
