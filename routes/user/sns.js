@@ -241,7 +241,7 @@ async function handleCallback(req, res, provider) {
         } else{ // 배포용
             // (5) 모바일 앱으로 전달 (deep link)
             // yoyangi://login → 앱 실행, token + refreshToken 전달
-            const deepLink = `yoyangi://callback?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(snsInstance.refresh_token)}`;
+            const deepLink = `yoyangi://callback?token=${encodeURIComponent(token)}&refreshToken=${encodeURIComponent(snsInstance.refresh_token)}&userId=${userInstance.id}`;
             res.redirect(deepLink);
         }
 
