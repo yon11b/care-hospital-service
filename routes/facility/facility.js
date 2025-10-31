@@ -5,21 +5,32 @@ const app = require("../../app");
 
 async function getFacilities(req, res) {
   try {
-    const page = parseInt(req.query.page) || 1; // 기본 1페이지
-    const limit = parseInt(req.query.limit) || 20; // 기본 20개
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
-    const latitude = parseFloat(req.query.latitude);
-    const longitude = parseFloat(req.query.longitude);
-    const keyword = req.query.keyword;
-    const kind = req.query.kind;
+    const latitude = parseFloat(req.query.latitude) || "";
+    const longitude = parseFloat(req.query.longitude) || "";
+    const keyword = req.query.keyword || "";
+    const kind = req.query.kind || "";
 
-    //if (latitude && longitude) {
+    // 전체 개수 조회
+    const totalCount = await models.facility.count({
+      where: {
+        ...(keyword && { name: { [Op.iLike]: `%${keyword}%` } }),
+        ...(kind && { kind }),
+        ...(longitude && { longitude: { [Op.ne]: "" } }),
+        ...(latitude && { latitude: { [Op.ne]: "" } }),
+      },
+      distinct: true,
+    });
+
+    // 데이터 조회
     const resp = await models.facility.findAll({
       where: {
-        longitude: { [Op.ne]: "" },
-        latitude: { [Op.ne]: "" },
+        ...(longitude && { longitude: { [Op.ne]: "" } }),
+        ...(latitude && { latitude: { [Op.ne]: "" } }),
         ...(keyword && { name: { [Op.iLike]: `%${keyword}%` } }),
-        kind,
+        ...(kind && { kind }),
       },
       attributes:
         latitude && longitude
@@ -28,9 +39,9 @@ async function getFacilities(req, res) {
                 [
                   literal(
                     `ST_DistanceSphere(
-                  ST_MakePoint(longitude::double precision, latitude::double precision),
-                  ST_MakePoint(${longitude}, ${latitude})
-                )`
+                      ST_MakePoint(longitude::double precision, latitude::double precision),
+                      ST_MakePoint(${longitude}, ${latitude})
+                    )`
                   ),
                   "distance",
                 ],
@@ -44,17 +55,23 @@ async function getFacilities(req, res) {
       order: latitude && longitude ? literal("distance ASC") : [["id", "ASC"]],
       limit,
       offset,
+      distinct: true,
     });
+
+    const isLastPage = offset + resp.length >= totalCount;
+    const totalPage = Math.ceil(totalCount / resp.length);
+
     res.json({
       Message: "Facility select successfully.",
       ResultCode: "ERR_OK",
       Size: resp.length,
+      TotalCount: totalCount,
+      TotalPage: totalPage,
+      Page: page,
+      IsLastPage: isLastPage,
       Response: resp,
     });
-    //res.send(resp);
-    //}
   } catch (err) {
-    //bad request
     console.log(err);
     res.status(400).send({
       result: false,
