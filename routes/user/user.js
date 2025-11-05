@@ -38,14 +38,16 @@ async function geolocation(req, res) {
       },
     });
     res.json({
-      message: "Geocode success",
-      data: response.data,
+      Message: "Geocode success",
+      ResultCode: "ERR_OK",
+      Response: response.data,
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({
-      message: "Geocode failed",
-      error: error,
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      error,
     });
   }
 }
