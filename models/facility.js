@@ -1,5 +1,3 @@
-
-
 module.exports = (sequelize, DataTypes) => {
   const facility = sequelize.define(
     "facility",
@@ -65,12 +63,12 @@ module.exports = (sequelize, DataTypes) => {
         comment: "기관설립날짜",
       },
       longitude: {
-        type: DataTypes.STRING,
+        type: DataTypes.DOUBLE,
         allowNull: true,
         comment: "x 좌표 위치",
       },
       latitude: {
-        type: DataTypes.STRING,
+        type: DataTypes.DOUBLE,
         allowNull: true,
         comment: "y 좌표 위치",
       },
@@ -84,6 +82,18 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: "사업자등록번호",
       },
+      average_rating: {
+        type: DataTypes.FLOAT,
+        allowNull: true,
+        defaultValue: 0,
+        comment: "평균 평점",
+      },
+      review_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+        comment: "리뷰 개수",
+      },      
     },
     {
       tableName: "facilities",
@@ -98,13 +108,20 @@ module.exports = (sequelize, DataTypes) => {
     facility.hasMany(models.meal, { foreignKey: "facility_id" });
     facility.hasMany(models.staff, { foreignKey: "facility_id" });
     facility.hasOne(models.facility_status, { foreignKey: "facility_id" });
-    facility.hasOne(models.advertisement, { foreignKey: "facility_id" });
+    facility.hasMany(models.advertisement, { foreignKey: "facility_id" });
     facility.hasMany(models.notice, { foreignKey: "facility_id" });
 
-    facility.hasMany(models.review, { foreignKey: 'facility_id', sourceKey: 'id' });
-    facility.hasMany(models.reservation, { foreignKey: 'facility_id' });
-  
-    facility.belongsToMany(models.user, { through: models.like, foreignKey: 'facility_id', otherKey: 'user_id' });
+    facility.hasMany(models.review, {
+      foreignKey: "facility_id",
+      sourceKey: "id",
+    });
+    facility.hasMany(models.reservation, { foreignKey: "facility_id" });
+
+    facility.belongsToMany(models.user, {
+      through: models.like,
+      foreignKey: "facility_id",
+      otherKey: "user_id",
+    });
   };
 
   return facility;

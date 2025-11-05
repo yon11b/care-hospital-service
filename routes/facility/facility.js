@@ -5,56 +5,87 @@ const app = require("../../app");
 
 async function getFacilities(req, res) {
   try {
-    const page = parseInt(req.query.page) || 1; // 기본 1페이지
-    const limit = parseInt(req.query.limit) || 20; // 기본 20개
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
+<<<<<<< HEAD
     const latitude = parseFloat(req.query.latitude);
     const longitude = parseFloat(req.query.longitude);
     const keyword = req.query.keyword;
     const kind = req.query.kind;
+=======
+    const latitude = req.query.latitude
+      ? parseFloat(req.query.latitude)
+      : 37.5664;
+    const longitude = req.query.longitude
+      ? parseFloat(req.query.longitude)
+      : 126.9779;
+    const keyword = req.query.keyword || "";
+    const kind = req.query.kind
+      ? req.query.kind.split(",").map((k) => k.trim())
+      : [];
+>>>>>>> 837e3b597a4dd4f2b1482bb212dfe521a8aa58ba
 
-    //if (latitude && longitude) {
+    // 전체 개수 조회
+    const totalCount = await models.facility.count({
+      where: {
+        ...(keyword && { name: { [Op.iLike]: `%${keyword}%` } }),
+        ...(longitude && { longitude: { [Op.ne]: null } }),
+        ...(latitude && { latitude: { [Op.ne]: null } }),
+        ...(kind.length > 0 && { kind: { [Op.in]: kind } }),
+      },
+      distinct: true,
+    });
+
+    // 데이터 조회
     const resp = await models.facility.findAll({
       where: {
-        longitude: { [Op.ne]: "" },
-        latitude: { [Op.ne]: "" },
         ...(keyword && { name: { [Op.iLike]: `%${keyword}%` } }),
+<<<<<<< HEAD
         kind,
+=======
+        ...(longitude && { longitude: { [Op.ne]: null } }),
+        ...(latitude && { latitude: { [Op.ne]: null } }),
+        ...(kind.length > 0 && { kind: { [Op.in]: kind } }),
       },
-      attributes:
-        latitude && longitude
-          ? {
-              include: [
-                [
-                  literal(
-                    `ST_DistanceSphere(
-                  ST_MakePoint(longitude::double precision, latitude::double precision),
-                  ST_MakePoint(${longitude}, ${latitude})
-                )`
-                  ),
-                  "distance",
-                ],
-              ],
-            }
-          : undefined,
+      attributes: {
+        include: [
+          [
+            literal(
+              `ST_DistanceSphere(
+              ST_MakePoint(longitude::double precision, latitude::double precision),
+              ST_MakePoint(${longitude}, ${latitude})
+              )`
+            ),
+            "distance",
+          ],
+        ],
+>>>>>>> 837e3b597a4dd4f2b1482bb212dfe521a8aa58ba
+      },
       include: [
         { model: models.facility_status },
         { model: models.advertisement },
       ],
-      order: latitude && longitude ? literal("distance ASC") : [["id", "ASC"]],
+      order: [[distanceLiteral, "ASC"]],
       limit,
       offset,
+      distinct: true,
     });
+
+    const isLastPage = offset + resp.length >= totalCount;
+    const totalPage = Math.ceil(totalCount / resp.length);
+
     res.json({
       Message: "Facility select successfully.",
       ResultCode: "ERR_OK",
       Size: resp.length,
+      TotalCount: totalCount,
+      TotalPage: totalPage,
+      Page: page,
+      IsLastPage: isLastPage,
       Response: resp,
     });
-    //res.send(resp);
-    //}
   } catch (err) {
-    //bad request
     console.log(err);
     res.status(400).send({
       result: false,
