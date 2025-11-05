@@ -80,9 +80,18 @@ if (process.env.proxy == "true") {
   app.use("/", proxy("localhost:8001"));
 }
 //DB Sync
-// const sequelize = require("sequelize");
-// const models = require("./models");
-// models.sequelize.sync();
+const sequelize = require("sequelize");
+const models = require("./models");
+models.sequelize.sync();
+
+// socket
+const initChatSocket = require("./routes/chats/chatSocket");
+const http = require("http");
+const { Server } = require("socket.io");
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
+
+initChatSocket(io);
 
 //error handling
 

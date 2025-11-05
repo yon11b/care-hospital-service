@@ -8,12 +8,7 @@ async function getFacilities(req, res) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
-<<<<<<< HEAD
-    const latitude = parseFloat(req.query.latitude);
-    const longitude = parseFloat(req.query.longitude);
-    const keyword = req.query.keyword;
-    const kind = req.query.kind;
-=======
+
     const latitude = req.query.latitude
       ? parseFloat(req.query.latitude)
       : 37.5664;
@@ -24,7 +19,6 @@ async function getFacilities(req, res) {
     const kind = req.query.kind
       ? req.query.kind.split(",").map((k) => k.trim())
       : [];
->>>>>>> 837e3b597a4dd4f2b1482bb212dfe521a8aa58ba
 
     // 전체 개수 조회
     const totalCount = await models.facility.count({
@@ -41,9 +35,7 @@ async function getFacilities(req, res) {
     const resp = await models.facility.findAll({
       where: {
         ...(keyword && { name: { [Op.iLike]: `%${keyword}%` } }),
-<<<<<<< HEAD
-        kind,
-=======
+
         ...(longitude && { longitude: { [Op.ne]: null } }),
         ...(latitude && { latitude: { [Op.ne]: null } }),
         ...(kind.length > 0 && { kind: { [Op.in]: kind } }),
@@ -60,7 +52,6 @@ async function getFacilities(req, res) {
             "distance",
           ],
         ],
->>>>>>> 837e3b597a4dd4f2b1482bb212dfe521a8aa58ba
       },
       include: [
         { model: models.facility_status },

@@ -93,7 +93,7 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: 0,
         comment: "리뷰 개수",
-      },      
+      },
     },
     {
       tableName: "facilities",
