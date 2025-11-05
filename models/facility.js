@@ -82,6 +82,18 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: "사업자등록번호",
       },
+      average_rating: {
+        type: DataTypes.FLOAT,
+        allowNull: true,
+        defaultValue: 0,
+        comment: "평균 평점",
+      },
+      review_count: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+        comment: "리뷰 개수",
+      },      
     },
     {
       tableName: "facilities",

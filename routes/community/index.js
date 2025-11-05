@@ -49,6 +49,14 @@ const {
   deleteComment,
   reportComment
 } = require('./comment');
+const{
+  getHealthNews,
+  getHealthNewsById 
+} = require('./news');
+
+
+router.get('/news', getHealthNews); // 최신요양정보 전체 목록 조회
+router.get('/news/:newsId', getHealthNewsById) // 최신요양정보 1개 조회
 
 router.get('/', getCommunities); // 전체 글 조회
 router.get('/:communityId', getCommunity);// 글 하나 조회

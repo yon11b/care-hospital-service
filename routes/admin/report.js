@@ -2,13 +2,13 @@ const models = require("../../models");
 const sha256 = require("sha256");
 const { Op } = require("sequelize");
 const app = require("../../app");
+const { sequelize } = require("../../models");
 
 // =================================
 // 1. 신고 관리
 // =================================
 // 1-1. 신고 목록 보여주기
 // GET /admin/reports
-// 페이징 처리까지 고려해서 번호 눌러서 볼 수 있는 방식
 async function getReports(req, res) {
   try {
     const page = parseInt(req.query.page, 10) || 1;
@@ -110,6 +110,36 @@ async function getReportDetail(req, res) {
     });
   }
 }
+
+// =======================================
+// 신고 처리 후 facility의 리뷰 통계 갱신 함수
+// =======================================
+async function updateFacilityStats(facilityId) {
+  // findOne으로 AVG/COUNT 가져오기
+  const stats = await models.review.findOne({
+    where: { facility_id: facilityId, status: { [Op.in]: ["ACTION", "REPORT_PENDING"] } },
+    attributes: [
+      [sequelize.fn("AVG", sequelize.col("rating")), "average_rating"],
+      [sequelize.fn("COUNT", sequelize.col("id")), "review_count"],
+    ],
+    raw: true,
+  });
+
+  if (!stats) return;
+
+  const average_rating = parseFloat(stats.average_rating) || 0;
+  const review_count = parseInt(stats.review_count) || 0;
+
+  const [updated] = await models.facility.update(
+    { average_rating, review_count },
+    { where: { id: facilityId } }
+  );
+
+  if (updated === 0) {
+    console.error("Facility stats update failed: no rows updated");
+  }
+}
+
 // 1-3. 신고 처리하기 - 승인
 // patch /admin/reports/:reportId/approved
 // report 상태 : PENDING -> APPROVED( 대상 삭제 )
@@ -230,6 +260,13 @@ async function handleReportApproved(req, res) {
       target.status = 'DELETED';
       target.deleted_at = now;
       await target.save();
+
+      // facility 테이블의 리뷰 통계 갱신
+      try {
+        await updateFacilityStats(target.facility_id);
+      } catch(err) {
+        console.error("Stats update failed:", err);
+      }      
     }
 
     return res.json({
