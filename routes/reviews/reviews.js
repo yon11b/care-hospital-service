@@ -235,18 +235,41 @@ async function createReview(req, res) {
     // 방문 예약을 했고 reservation status가 CONFIRMED이면
     // 방문 인증 마크를 준다.
     let visited = false;
+
     if (reservationId) {
       const reservation = await models.reservation.findOne({
         where: {
           id: reservationId,
-          user_id: userId,
           facility_id: facilityId,
-          status: "CONFIRMED",
         },
       });
 
-      if (reservation && reservation.reservation_time) {
-        visited = new Date(reservation.reservation_time) < new Date();
+      // 예약 존재 여부 확인
+      if (!reservation) {
+        return res.status(404).json({
+          Message: "해당 예약을 찾을 수 없습니다.",
+          ResultCode: "ERR_RESERVATION_NOT_FOUND",
+        });
+      }
+
+      // 예약자 본인인지 검증
+      if (reservation.user_id !== userId) {
+        return res.status(403).json({
+          Message: "본인 예약만 리뷰를 작성할 수 있습니다.",
+          ResultCode: "ERR_FORBIDDEN",
+        });
+      }
+
+      // CONFIRMED 상태의 예약만 visited를 true로 바꾼다.
+      // 나머지 상태의 예약은 false로 나둔다.
+      if(reservation.status === "CONFIRMED"){
+        // 예약 시간 경과 여부로 visited 판정
+        if (reservation.reserved_date && reservation.reserved_time) {
+          const reservationDateTime = new Date(
+            `${reservation.reserved_date}T${reservation.reserved_time}+09:00`
+          );
+          visited = reservationDateTime < new Date();
+        }
       }
     }
 
@@ -260,6 +283,7 @@ async function createReview(req, res) {
     const newReview = await models.review.create({
       user_id: userId,
       facility_id: facilityId,
+      reservation_id : reservationId,
       content,
       rating,
       images: imageUrls,
