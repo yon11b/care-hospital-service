@@ -135,45 +135,42 @@ async function createReservation(req, res){
 }
 
 // 유저의 예약 전체 조회
-// /facilities/reservations/list
+// GET /facilities/reservations/list
 async function getReservations(req, res) {
-  try{
+  try {
     const userId = req.user.id; // 로그인 유저
-    const limit = parseInt(req.query.limit, 10) || 10;  // 한 번에 가져올 개수 : 기본 10개
-    const lastId = req.query.lastId || null ; // 마지막으로 가져온 예약 id
+    const page = parseInt(req.query.page, 10) || 1; // 기본 1페이지
+    const limit = parseInt(req.query.limit, 10) || 10; // 한 페이지당 개수
+    const offset = (page - 1) * limit; // offset 계산
 
-    if(!userId){ // 로그인 확인
-        return res.status(401).send({
-            Message: 'Unauthorized - 로그인 필요',
-            ResultCode: 'ERR_UNAUTHORIZED',
+    if (!userId) {
+      return res.status(401).send({
+        Message: 'Unauthorized - 로그인 필요',
+        ResultCode: 'ERR_UNAUTHORIZED',
       });
     }
-    
-    // 조회 조건
-    const where = { user_id: userId }; // 사용자
-    if (lastId) {
-      where.id = { [Sequelize.Op.lt]: lastId }; // 마지막 글보다 작은 id만 가져오기
-    }
 
-    // 예약자, 병원 이름, 예약일, 예약 상태 포함 조회
-    const reservations = await models.reservation.findAll({
-      where,
-      limit: limit + 1, // hasMore 체크를 위해 한 개 더 가져오기
-      attributes: ['id','reserved_date', 'status'], // reservation에서 필요한 컬럼
-      include: [
-        { model: models.user, attributes: ['id', 'name'] }, // 예약자 이름
-        { model: models.facility, attributes: ['id', 'name'] } // 기관 이름
-      ],
-      order: [['id', 'DESC']] // id 기준 예약 순서
+    // 총 예약 수
+    const totalCount = await models.reservation.count({
+      where: { user_id: userId },
     });
 
-    let hasMore = false;
-    if (reservations.length > limit) {
-      hasMore = true;
-      reservations.pop(); // 넘친 1개 제거
-    }
+    // 예약 목록 조회
+    const reservations = await models.reservation.findAll({
+      where: { user_id: userId },
+      limit,
+      offset,
+      attributes: ['id', 'reserved_date', 'status'],
+      include: [
+        { model: models.user, attributes: ['id', 'name'] },
+        { model: models.facility, attributes: ['id', 'name'] },
+      ],
+      order: [['id', 'DESC']],
+    });
 
-    const responseData = reservations.map(r => ({
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const responseData = reservations.map((r) => ({
       reservation_id: r.id,
       user_name: r.user.name,
       facility_name: r.facility.name,
@@ -181,18 +178,17 @@ async function getReservations(req, res) {
       status: r.status,
     }));
 
-    // 응답(Response) 보내기
     res.status(200).json({
       Message: 'Success',
       ResultCode: 'OK',
-      hasMore, // 다음 페이지가 있는지 쉽게 판단 (hasMore).
+      page,
+      totalPages,
+      totalCount,
+      hasMore: page < totalPages,
       data: responseData,
     });
-
-
-  } catch(err){
-    //bad request
-    console.log(err);
+  } catch (err) {
+    console.error(err);
     res.status(500).send({
       Message: '서버 에러',
       ResultCode: 'ERR_SERVER',
