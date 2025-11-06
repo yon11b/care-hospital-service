@@ -1,8 +1,39 @@
 const models = require("../../models");
+const { SNS_CONFIG } = require("../user/sns.js");
+
+async function getUserInfo(req) {
+  // 1. 세션에 staff 정보가 있는지 확인
+  if (
+    (req.session?.user && req.session?.user?.role === "staff") ||
+    req.session?.user?.role === "owner"
+  ) {
+    return {
+      user_type: "staff",
+      user_id: req.session.user.id,
+    };
+  } else {
+    // 2. Authorization 헤더(JWT)에서 guardian 정보 확인
+    const provider = req.body.provider;
+    const accessToken = req.body.accessToken;
+    const config = SNS_CONFIG[provider];
+    const headers = { Authorization: `Bearer ${accessToken}` };
+    try {
+      const res = await axios.get(config.profileUrl, { headers });
+      console.log(res);
+      return {
+        user_type: "guardian",
+        user_id: res.data.response.id,
+      };
+    } catch (err) {
+      return err;
+    }
+  }
+}
 
 async function getRooms(req, res) {
   try {
-    const { user_type, user_id } = req.body;
+    const { user_type, user_id } = await getUserInfo(req);
+
     let whereClause = {};
 
     if (user_type === "staff") {
@@ -43,7 +74,15 @@ async function getRooms(req, res) {
 
 async function getMessages(req, res) {
   try {
-    const { user_type, user_id } = req.body;
+    const user = req.session.user || null;
+    if (user == null) {
+      user_type = "guardian";
+    }
+    if (user.role == "staff" || user.role == "owner") {
+      user_type = "staff";
+      user_id = id;
+    }
+
     const { room_id } = req.params;
 
     // 우선 해당 room이 그 사용자의 권한 범위에 있는지 확인
