@@ -57,7 +57,7 @@ async function getFacilities(req, res) {
         { model: models.facility_status },
         { model: models.advertisement },
       ],
-      order: [[distanceLiteral, "ASC"]],
+      order: [[literal("distance"), "ASC"]],
       limit,
       offset,
       distinct: true,
