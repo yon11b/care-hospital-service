@@ -74,14 +74,7 @@ async function getRooms(req, res) {
 
 async function getMessages(req, res) {
   try {
-    const user = req.session.user || null;
-    if (user == null) {
-      user_type = "guardian";
-    }
-    if (user.role == "staff" || user.role == "owner") {
-      user_type = "staff";
-      user_id = id;
-    }
+    const { user_type, user_id } = await getUserInfo(req);
 
     const { room_id } = req.params;
 
@@ -113,8 +106,15 @@ async function getMessages(req, res) {
     });
   } catch (err) {
     console.error(err);
+    if (err.message === "Room not found") {
+      return res.status(404).json({
+        Message: "Chat room not found.",
+        ResultCode: "ERR_ROOM_NOT_FOUND",
+        Status: 404,
+      });
+    }
 
-    if (err.name === "SequelizeDatabaseError") {
+    if (err.message === "SequelizeDatabaseError") {
       // DB 관련 오류
       return res.status(500).json({
         Message: "Internal server error",

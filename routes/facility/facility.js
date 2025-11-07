@@ -97,14 +97,6 @@ async function getFacility(req, res) {
         { model: models.facility_status },
         { model: models.advertisement },
       ],
-      //include: [
-      // {
-      //   model: models.review,
-      //   attributes: [],
-      //   limit: 5, // 최근 5개만
-      //   order: [['createdAt', 'DESC']], // 최신순
-      // },
-      //],
     });
     res.send(resp);
   } catch (err) {
