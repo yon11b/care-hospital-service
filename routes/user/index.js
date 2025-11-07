@@ -26,7 +26,7 @@ const { getfavorites, toggleFavorite } = require("./favorite");
 const { makeSnsAuthUrl, handleCallback, refreshToken } = require("./sns");
 
 router.get("/session", getSession);
-router.post("/register", upsertUser);
+router.post("/register/staff", upsertUser);
 router.post("/approveFacility", approveFacility);
 router.post("/login", login);
 router.post("/logout", logout);
