@@ -98,7 +98,18 @@ async function getFacility(req, res) {
         { model: models.advertisement },
       ],
     });
-    res.send(resp);
+    if (!resp) {
+      return res.status(404).json({
+        Message: "Facility not found",
+        ResultCode: "ERR_NOT_FOUND",
+        status: "404",
+      });
+    }
+    res.json({
+      Message: "Facility select successfully.",
+      ResultCode: "ERR_OK",
+      Response: resp,
+    });
   } catch (err) {
     //bad request
     console.log(err);
