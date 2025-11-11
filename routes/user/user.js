@@ -178,7 +178,7 @@ async function upsertUser(req, res) {
 async function login(req, res) {
   try {
     //const user = await models.staff.findAll();
-    const userinfo = await models.staff.findOne({
+    const user = await models.staff.findOne({
       where: {
         email: req.body.email,
         password: String(sha256(req.body.password)),
@@ -193,21 +193,31 @@ async function login(req, res) {
       ],
     });
 
-    if (userinfo) {
-      //res.json(user);
-      req.session.user = userinfo;
-      res.json("로그인, 세션 저장 성공");
+    if (user) {
+      await models.login_log.create({
+        user_id: user.id,
+        user_type: "staff",
+        ip_address: req.ip,
+        user_agent: req.headers["user-agent"],
+      });
+      req.session.user = user;
+      return res.status(200).send({
+        Message: "staff login and session save successfully",
+        ResultCode: "ERR_OK",
+        Response: user,
+      });
     } else {
-      res.json({
-        result: false,
-        message: "로그인에 실패하였습니다.",
+      return res.status(401).send({
+        Message: "Invalid email or password.",
+        ResultCode: "ERR_INVALID_CREDENTIALS",
       });
     }
   } catch (err) {
     console.log(err);
-    res.json({
-      result: false,
-      msg: err.toString(),
+    return res.status(500).send({
+      Message: error.message || "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      error,
     });
   }
 }

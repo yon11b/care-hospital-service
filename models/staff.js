@@ -54,6 +54,10 @@ module.exports = (sequelize, DataTypes) => {
     //   facility.hasMany(models.reservation, { foreignKey: 'facilityId' });
     //   facility.hasMany(models.consult, { foreignKey: 'facilityId' });
     staff.belongsTo(models.facility, { foreignKey: "facility_id" });
+    staff.hasMany(models.login_log, {
+      foreignKey: "user_id",
+      onDelete: "CASCADE",
+    });
   };
 
   return staff;
