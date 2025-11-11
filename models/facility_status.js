@@ -120,6 +120,10 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: "의과 전문의 수",
       },
+      facility_id: {
+        type: DataTypes.INTEGER,
+        unique: true,
+      },
     },
     {
       tableName: "facility_status",

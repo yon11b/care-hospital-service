@@ -20,6 +20,38 @@ async function getSession(req, res) {
     });
   }
 }
+
+async function geolocation(req, res) {
+  const NCP_API_KEY_ID = process.env.NCP_API_KEY_ID;
+  const NCP_API_KEY = process.env.NCP_API_KEY;
+
+  try {
+    const query = req.query.location;
+    const url = "https://maps.apigw.ntruss.com/map-geocode/v2/geocode";
+
+    const response = await axios.get(url, {
+      params: { query },
+      headers: {
+        "x-ncp-apigw-api-key-id": NCP_API_KEY_ID,
+        "x-ncp-apigw-api-key": NCP_API_KEY,
+        Accept: "application/json",
+      },
+    });
+    res.json({
+      Message: "Geocode success",
+      ResultCode: "ERR_OK",
+      Response: response.data,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      error,
+    });
+  }
+}
+
 async function checkFacility(bizNumber, email) {
   try {
     const serviceKey = process.env.OPEN_API;
@@ -273,4 +305,5 @@ module.exports = {
   approveFacility,
   login,
   logout,
+  geolocation,
 };

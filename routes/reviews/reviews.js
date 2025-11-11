@@ -3,39 +3,31 @@
 const models = require("../../models");
 const sha256 = require("sha256");
 const app = require("../../app");
-const Sequelize = require("sequelize");
 const AWS = require("aws-sdk");
 const { Op } = require("sequelize");
+const { sequelize } = require("../../models");
 
 // 1. 리뷰 전체 리스트 조회
 // 작성자, 작성일, 내용, 이미지, 평점, 방문인증
 // GET /reviews/:facilityId
 async function getReviews(req, res) {
   try {
-    const facilityId = req.params.facilityId;
+    const facilityId = parseInt(req.params.facilityId, 10);
+    const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 10;
-    const cursor = req.query.cursor || null; // 무한 스크롤용 커서, 'created_at' 또는 'rating_createdAt' 형태
+    const offset = (page - 1) * limit;
     const sort = req.query.sort || "latest"; // latest(default) 또는 rating
 
     // 1. 파라미터 유효성 체크
-    // limit 체크
     if (isNaN(limit) || limit <= 0 || limit > 50) {
       return res.status(400).json({
         Message: "Invalid limit parameter",
         ResultCode: "ERR_INVALID_PARAMETER",
       });
     }
-    // sort 체크
     if (!["latest", "rating"].includes(sort)) {
       return res.status(400).json({
         Message: "Invalid sort parameter",
-        ResultCode: "ERR_INVALID_PARAMETER",
-      });
-    }
-    // cursor 체크
-    if (cursor && typeof cursor !== "string") {
-      return res.status(400).json({
-        Message: "Invalid cursor parameter",
         ResultCode: "ERR_INVALID_PARAMETER",
       });
     }
@@ -49,99 +41,48 @@ async function getReviews(req, res) {
       });
     }
 
-    // 3. 기본 조회 조건
+    // 3. 조회 조건
     const where = {
       facility_id: facilityId,
       status: { [Op.in]: ["ACTION", "REPORT_PENDING"] },
     };
-    let order; // 정렬 기준
 
-    // 4. 정렬 기준에 따른 order와 cursor 처리
-    if (sort === "latest") {
-      // 최신순: created_at DESC
-      order = [["created_at", "DESC"]];
-      if (cursor) {
-        where.created_at = { [Op.lt]: new Date(cursor) };
-      }
-    } else if (sort === "rating") {
-      // 평점순: rating DESC, created_at DESC
-      order = [
-        ["rating", "DESC"],
-        ["created_at", "DESC"],
-      ];
-
-      if (cursor) {
-        try {
-          // cursor = "평점_createdAt" 형태
-          const [cursorRating, cursorDate] = cursor.split("_");
-          if (isNaN(cursorRating) || !cursorDate)
-            throw new Error("Invalid cursor format");
-
-          // 평점이 낮거나, 평점이 같으면 created_at이 더 작은 글만 조회
-          where[Op.or] = [
-            { rating: { [Op.lt]: parseInt(cursorRating, 10) } },
-            {
-              rating: parseInt(cursorRating, 10),
-              created_at: { [Op.lt]: new Date(cursorDate) },
-            },
+    // 4. 정렬 기준
+    const order =
+      sort === "latest"
+        ? [["created_at", "DESC"]]
+        : [
+            ["rating", "DESC"],
+            ["created_at", "DESC"],
           ];
-        } catch (e) {
-          return res.status(400).json({
-            Message: "Invalid cursor format",
-            ResultCode: "ERR_INVALID_PARAMETER",
-          });
-        }
-      }
-    }
 
     // 5. 리뷰 조회
-    const review = await models.review.findAll({
-      where, // 필터 조건 (해당 기관, action, report_pending 리뷰들.)
-      order, // 정렬
-      limit, // 한번에 가져올 개수
-      attributes: [
-        "id",
-        "user_id",
-        "content",
-        "images",
-        "rating",
-        "visited",
-        "created_at",
-      ],
-      include: [
-        {
-          model: models.user, // 작성자
-          attributes: ["id", "name"],
-        },
-      ],
+    const reviews = await models.review.findAll({
+      where,
+      order,
+      limit,
+      offset,
+      attributes: ["id", "user_id", "content", "images", "rating", "visited", "created_at"],
+      include: [{ model: models.user, attributes: ["id", "name"] }],
     });
 
-    // 6. 다음 cursor 계산
-    let nextCursor = null;
-    if (Array.isArray(review) && review.length > 0) {
-      const last = review[review.length - 1]; // 마지막 리뷰 기준
+    // 6. 다음 페이지 여부 체크
+    const totalReviews = await models.review.count({ where });
+    const hasNextPage = offset + reviews.length < totalReviews;
 
-      if (last && last.created_at) {
-        if (sort === "latest") {
-          // 최신순: 마지막 created_at
-          nextCursor = last.created_at.toISOString();
-        } else if (sort === "rating") {
-          // 평점순 중 created_at 비교
-          nextCursor = `${last.rating}_${last.created_at.toISOString()}`;
-        }
-      }
-    }
-
-    // 7.응답 반환
+    // 7. 응답
     res.status(200).json({
       Message: "Success",
       ResultCode: "OK",
-      Reviews: review.map((r) => r.get({ plain: true })),
-      nextCursor, // 다음 페이지 커서
+      data: reviews.map((r) => r.get({ plain: true })),
+      page,
+      limit,
+      totalReviews,
+      hasNextPage,
     });
   } catch (err) {
-    console.log(err);
-    res.status(400).send({
+    console.error(err);
+    res.status(400).json({
       Message: "Invalid parameter - 잘못된 쿼리",
       ResultCode: "ERR_INVALID_PARAMETER",
       Error: err.toString(),
@@ -162,6 +103,14 @@ async function getReview(req, res) {
       return res.status(400).json({
         Message: "Invalid parameters",
         ResultCode: "ERR_INVALID_PARAMS",
+      });
+    }
+
+    const facility = await models.facility.findByPk(facilityId);
+    if (!facility) {
+      return res.status(404).json({
+        Message: "기관이 존재하지 않습니다.",
+        ResultCode: "ERR_FACILITY_NOT_FOUND",
       });
     }
 
@@ -191,7 +140,7 @@ async function getReview(req, res) {
     res.status(200).json({
       Message: "Success",
       ResultCode: "OK",
-      Review: review.get({ plain: true }),
+      data: review.get({ plain: true }),
     });
   } catch (err) {
     //bad request
@@ -203,6 +152,36 @@ async function getReview(req, res) {
     });
   }
 }
+
+// =======================================
+// 리뷰 생성/수정/삭제 후 통계 갱신 함수
+// =======================================
+async function updateFacilityStats(facilityId) {
+  // findOne으로 AVG/COUNT 가져오기
+  const stats = await models.review.findOne({
+    where: { facility_id: facilityId, status: { [Op.in]: ["ACTION", "REPORT_PENDING"] } },
+    attributes: [
+      [sequelize.fn("AVG", sequelize.col("rating")), "average_rating"],
+      [sequelize.fn("COUNT", sequelize.col("id")), "review_count"],
+    ],
+    raw: true,
+  });
+
+  if (!stats) return;
+
+  const average_rating = parseFloat(stats.average_rating) || 0;
+  const review_count = parseInt(stats.review_count) || 0;
+
+  const [updated] = await models.facility.update(
+    { average_rating, review_count },
+    { where: { id: facilityId } }
+  );
+
+  if (updated === 0) {
+    console.error("Facility stats update failed: no rows updated");
+  }
+}
+
 
 // 3. 리뷰 생성  -> jwt 필요
 // POST /reviews/:facilityId -> createReview,
@@ -228,6 +207,14 @@ async function createReview(req, res) {
       });
     }
 
+    const facility = await models.facility.findByPk(facilityId);
+    if (!facility) {
+      return res.status(404).json({
+        Message: "Facility not found",
+        ResultCode: "ERR_NOT_FOUND",
+      });
+    }
+
     // 필수 확인
     if (!content || rating == null) {
       return res.status(400).json({
@@ -248,18 +235,41 @@ async function createReview(req, res) {
     // 방문 예약을 했고 reservation status가 CONFIRMED이면
     // 방문 인증 마크를 준다.
     let visited = false;
+
     if (reservationId) {
       const reservation = await models.reservation.findOne({
         where: {
           id: reservationId,
-          user_id: userId,
           facility_id: facilityId,
-          status: "CONFIRMED",
         },
       });
 
-      if (reservation && reservation.reservation_time) {
-        visited = new Date(reservation.reservation_time) < new Date();
+      // 예약 존재 여부 확인
+      if (!reservation) {
+        return res.status(404).json({
+          Message: "해당 예약을 찾을 수 없습니다.",
+          ResultCode: "ERR_RESERVATION_NOT_FOUND",
+        });
+      }
+
+      // 예약자 본인인지 검증
+      if (reservation.user_id !== userId) {
+        return res.status(403).json({
+          Message: "본인 예약만 리뷰를 작성할 수 있습니다.",
+          ResultCode: "ERR_FORBIDDEN",
+        });
+      }
+
+      // CONFIRMED 상태의 예약만 visited를 true로 바꾼다.
+      // 나머지 상태의 예약은 false로 나둔다.
+      if(reservation.status === "CONFIRMED"){
+        // 예약 시간 경과 여부로 visited 판정
+        if (reservation.reserved_date && reservation.reserved_time) {
+          const reservationDateTime = new Date(
+            `${reservation.reserved_date}T${reservation.reserved_time}+09:00`
+          );
+          visited = reservationDateTime < new Date();
+        }
       }
     }
 
@@ -270,20 +280,28 @@ async function createReview(req, res) {
       : [];
 
     // db 저장
-    const review = await models.review.create({
+    const newReview = await models.review.create({
       user_id: userId,
       facility_id: facilityId,
+      reservation_id : reservationId,
       content,
       rating,
       images: imageUrls,
       visited,
-      reply: null, // 관리자 답변은 아직 없음
+      reply: null, // 관리자 답변은 아직 없음 
     });
+
+    // facility 테이블의 리뷰 평균 평점, 리뷰 개수 갱신
+    try {
+      await updateFacilityStats(newReview.facility_id);
+    } catch(err) {
+      console.error("Stats update failed:", err);
+    }
 
     return res.status(201).json({
       Message: "리뷰가 성공적으로 등록되었습니다.",
       ResultCode: "SUCCESS",
-      Review: review.get({ plain: true }),
+      data: newReview.get({ plain: true }),
     });
   } catch (err) {
     console.error("createReview error:", err);
@@ -312,7 +330,7 @@ async function updateReview(req, res) {
     // 경로 파라미터에서 id 가져오기
     const facilityId = parseInt(req.params.facilityId, 10);
     const reviewId = parseInt(req.params.reviewId, 10);
-    const { content, rating, removeImages, finalOrder } = req.body; // 제목, 내용, 삭제할 이미지, 이미지 순서
+    let { content, rating, removeImages, finalOrder } = req.body; // 제목, 내용, 삭제할 이미지, 이미지 순서
 
     // 파라미터 확인
     if (isNaN(facilityId) || isNaN(reviewId)) {
@@ -323,8 +341,14 @@ async function updateReview(req, res) {
     }
 
     // FormData 단일 값 보정 -> 배열 변환
-    if (typeof removeImages === "string") removeImages = [removeImages];
-    if (typeof finalOrder === "string") finalOrder = [finalOrder];
+    if (removeImages) {
+      if (typeof removeImages === "string") removeImages = [removeImages];
+      else if (!Array.isArray(removeImages)) removeImages = [];
+    }
+    if (finalOrder) {
+      if (typeof finalOrder === "string") finalOrder = [finalOrder];
+      else if (!Array.isArray(finalOrder)) finalOrder = [];
+    }
 
     // 필수 항목 체크
     if (!content || rating == null) {
@@ -398,6 +422,13 @@ async function updateReview(req, res) {
       rating: rating,
       images: imageUrls,
     });
+
+    // 리뷰 통계 갱신
+    try {
+      await updateFacilityStats(review.facility_id);
+    } catch(err) {
+      console.error("Stats update failed:", err);
+    }
 
     // DB 반영 후 최신 값 가져오기
     await review.reload();
@@ -478,7 +509,7 @@ async function deleteReview(req, res) {
         Delete: {
           Objects: review.images.map((url) => ({
             Key: decodeURIComponent(new URL(url).pathname.slice(1)),
-          })), // 가능하면 Key를 DB에 저장
+          })), 
         },
       };
 
@@ -496,6 +527,13 @@ async function deleteReview(req, res) {
     // 신고 내역/통계 페이지의 신고 횟수 때문에
     // 실제 삭제가 아니라 status: DELETED로 처리
     await review.update({ status: "DELETED", deleted_at: new Date() });
+
+    // 리뷰 통계 갱신
+    try {
+      await updateFacilityStats(review.facility_id);
+    } catch(err) {
+      console.error("Stats update failed:", err);
+    }
 
     // 응답 보내기
     return res.json({

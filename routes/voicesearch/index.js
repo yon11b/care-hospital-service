@@ -4,6 +4,6 @@ const router = express.Router();
 
 const { searchFacilities } = require("./voicesearch");
 
-router.post("/voice", searchFacilities);
+router.post("/", searchFacilities);
 
 module.exports = router;
