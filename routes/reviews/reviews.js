@@ -224,7 +224,7 @@ async function createReview(req, res) {
     }
 
     // 평점 범위 확인
-    if (rating < 1 || rating > 5) {
+    if (rating <= 1 || rating >= 5) {
       return res.status(400).json({
         Message: "Invalid rating",
         ResultCode: "ERR_INVALID_RATING",
