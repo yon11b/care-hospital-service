@@ -278,7 +278,6 @@ async function upsertFacility(req, res) {
   try {
     if (
       !req.session.user ||
-      req.session.user.role == "user" ||
       req.session.user.facility_id != req.params.facilityid
     ) {
       res.status(401).send({
@@ -296,9 +295,6 @@ async function upsertFacility(req, res) {
           },
         }
       );
-
-      console.log(req.file);
-
       res.send({
         Message: "Success to facility information updated",
         ResultCode: "ERR_OK",

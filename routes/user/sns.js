@@ -223,6 +223,13 @@ async function handleCallback(req, res, provider) {
 
     // (4) JWT 발급
     const token = generateToken(userInstance);
+    await models.login_log.create({
+      user_id: userInstance.id,
+      user_type: "guardian",
+      ip_address: req.ip,
+      user_agent: req.headers["user-agent"],
+      login_at: new Date(),
+    });
     if (process.env.NODE_ENV === "development") {
       // 테스트
       // 현재 모바일 앱 deep link 대신 json으로 응답 -> 테스트용

@@ -136,71 +136,90 @@ async function approveFacility(req, res) {
 
 async function upsertUser(req, res) {
   try {
-    const user = await models.staff.findOne({
-      where: {
-        email: req.body.email,
-      },
-    });
+    const {
+      name,
+      password,
+      email,
+      role,
+      facility_id,
+      facility_number,
+      facility_token,
+    } = req.body;
+    const userId = req.session.user?.id;
 
-    if (!user) {
-      if (req.body.role == "owner" && req.body.facility_number) {
+    // 기존 사용자 조회
+    const existingUser = await models.staff.findOne({ where: { id: userId } });
+
+    if (!existingUser) {
+      // 신규 사용자 처리
+      if (role == "owner" && facility_number) {
         await models.staff.create({
-          name: req.body.name,
-          password: sha256(req.body.password),
-          email: req.body.email,
+          name,
+          password: sha256(password),
+          email,
           approval_status: "pending",
-          role: req.body.role,
-          facility_id: req.body.facility_id,
-          facility_number: req.body.facility_number,
+          role,
+          facility_id,
+          facility_number,
         });
-        await checkFacility(req.body.facility_number, req.body.email);
-      } else if (req.body.role == "staff") {
-        const token = await models.staff.findOne({
-          where: {
-            facility_token: req.body.facility_token,
-          },
+
+        // 사업자번호 검증
+        await checkFacility(facility_number, email);
+      } else if (role == "staff") {
+        // 직원 계정
+        const tokenValid = await models.staff.findOne({
+          where: { facility_token },
         });
-        if (token) {
+        if (tokenValid) {
           await models.staff.create({
-            name: req.body.name,
-            password: sha256(req.body.password),
-            email: req.body.email,
+            name,
+            password: sha256(password),
+            email,
             approval_status: "approved",
-            role: "staff",
-            facility_id: req.body.facility_id,
+            role,
+            facility_id,
           });
+        } else {
+          return res
+            .status(400)
+            .json({ result: false, msg: "유효하지 않은 시설 토큰입니다." });
         }
       }
     } else {
+      // 기존 사용자 업데이트
+      const oldFacilityNumber = existingUser.facility_number;
+
       await models.staff.update(
         {
-          name: req.body.name,
-          password: sha256(req.body.password),
-          email: req.body.email,
-          role: req.body.role,
+          name,
+          password: sha256(password),
+          email,
+          role,
+          facility_number,
         },
-        {
-          where: {
-            email: req.body.email,
-          },
-        }
+        { where: { id: userId } }
       );
 
-      //   req.session.user = await models.user.findOne({
-      //     where: {
-      //       uid: req.body.uid,
-      //     },
-      //     attributes: ['name', 'email'],
-      //   });
+      // 시설 로그 기록
+      if (facility_number && facility_number !== oldFacilityNumber) {
+        await models.facility_log.create({
+          facility_id: existingUser.facility_id,
+          user_id: userId,
+          action: "UPDATE",
+          changed_data: {
+            facility_number: {
+              before: oldFacilityNumber,
+              after: facility_number,
+            },
+          },
+        });
+      }
     }
 
-    res.send({
-      result: true,
-    });
+    return res.status(200).json({ result: true });
   } catch (err) {
-    //bad request
-    console.log(err);
-    res.status(400).send({
+    console.error(err);
+    return res.status(400).json({
       result: false,
       msg: err.toString(),
     });
