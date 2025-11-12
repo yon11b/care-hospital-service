@@ -253,12 +253,14 @@ async function login(req, res) {
       });
       req.session.user = user;
       return res.status(200).send({
+        result: true, 
         Message: "staff login and session save successfully",
         ResultCode: "ERR_OK",
         Response: user,
       });
     } else {
       return res.status(401).send({
+        result: false, 
         Message: "Invalid email or password.",
         ResultCode: "ERR_INVALID_CREDENTIALS",
       });
@@ -266,6 +268,7 @@ async function login(req, res) {
   } catch (err) {
     console.log(err);
     return res.status(500).send({
+      result: false, 
       Message: error.message || "Internal server error",
       ResultCode: "ERR_INTERNAL_SERVER",
       error,
