@@ -62,7 +62,15 @@ async function getReviews(req, res) {
       order,
       limit,
       offset,
-      attributes: ["id", "user_id", "content", "images", "rating", "visited", "created_at"],
+      attributes: [
+        "id",
+        "user_id",
+        "content",
+        "images",
+        "rating",
+        "visited",
+        "created_at",
+      ],
       include: [{ model: models.user, attributes: ["id", "name"] }],
     });
 
@@ -159,7 +167,10 @@ async function getReview(req, res) {
 async function updateFacilityStats(facilityId) {
   // findOne으로 AVG/COUNT 가져오기
   const stats = await models.review.findOne({
-    where: { facility_id: facilityId, status: { [Op.in]: ["ACTION", "REPORT_PENDING"] } },
+    where: {
+      facility_id: facilityId,
+      status: { [Op.in]: ["ACTION", "REPORT_PENDING"] },
+    },
     attributes: [
       [sequelize.fn("AVG", sequelize.col("rating")), "average_rating"],
       [sequelize.fn("COUNT", sequelize.col("id")), "review_count"],
@@ -181,7 +192,6 @@ async function updateFacilityStats(facilityId) {
     console.error("Facility stats update failed: no rows updated");
   }
 }
-
 
 // 3. 리뷰 생성  -> jwt 필요
 // POST /reviews/:facilityId -> createReview,
@@ -262,7 +272,7 @@ async function createReview(req, res) {
 
       // CONFIRMED 상태의 예약만 visited를 true로 바꾼다.
       // 나머지 상태의 예약은 false로 나둔다.
-      if(reservation.status === "CONFIRMED"){
+      if (reservation.status === "CONFIRMED") {
         // 예약 시간 경과 여부로 visited 판정
         if (reservation.reserved_date && reservation.reserved_time) {
           const reservationDateTime = new Date(
@@ -283,18 +293,18 @@ async function createReview(req, res) {
     const newReview = await models.review.create({
       user_id: userId,
       facility_id: facilityId,
-      reservation_id : reservationId,
+      reservation_id: reservationId,
       content,
       rating,
       images: imageUrls,
       visited,
-      reply: null, // 관리자 답변은 아직 없음 
+      reply: null, // 관리자 답변은 아직 없음
     });
 
     // facility 테이블의 리뷰 평균 평점, 리뷰 개수 갱신
     try {
       await updateFacilityStats(newReview.facility_id);
-    } catch(err) {
+    } catch (err) {
       console.error("Stats update failed:", err);
     }
 
@@ -426,7 +436,7 @@ async function updateReview(req, res) {
     // 리뷰 통계 갱신
     try {
       await updateFacilityStats(review.facility_id);
-    } catch(err) {
+    } catch (err) {
       console.error("Stats update failed:", err);
     }
 
@@ -509,7 +519,7 @@ async function deleteReview(req, res) {
         Delete: {
           Objects: review.images.map((url) => ({
             Key: decodeURIComponent(new URL(url).pathname.slice(1)),
-          })), 
+          })),
         },
       };
 
@@ -531,7 +541,7 @@ async function deleteReview(req, res) {
     // 리뷰 통계 갱신
     try {
       await updateFacilityStats(review.facility_id);
-    } catch(err) {
+    } catch (err) {
       console.error("Stats update failed:", err);
     }
 
