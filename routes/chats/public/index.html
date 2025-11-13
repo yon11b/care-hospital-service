@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO 채팅 테스트</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      #chat {
+        border: 1px solid #ccc;
+        height: 300px;
+        overflow-y: auto;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+      .message {
+        margin: 5px 0;
+      }
+      .staff {
+        color: blue;
+      }
+      .guardian {
+        color: green;
+      }
+      .system {
+        color: gray;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Socket.IO 채팅 테스트</h2>
+
+    <label>
+      역할:
+      <select id="role">
+        <option value="staff">직원</option>
+        <option value="guardian">보호자</option>
+      </select>
+    </label>
+    <br /><br />
+
+    <label
+      >Facility ID: <input type="text" id="facility_id" value="6633" /></label
+    ><br />
+    <label>Guardian ID: <input type="text" id="guardian_id" value="2" /></label
+    ><br />
+    <label>Staff ID: <input type="text" id="staff_id" value="24" /></label
+    ><br /><br />
+
+    <button id="joinRoomBtn">채팅방 입장</button>
+
+    <div id="chat"></div>
+    <input type="text" id="messageInput" placeholder="메시지 입력..." />
+    <button id="sendBtn">전송</button>
+
+    <script>
+      // ✅ socket은 페이지에서 한 번만 연결
+      const socket = io("http://localhost:8080", { transports: ["websocket"] });
+
+      const chatDiv = document.getElementById("chat");
+      const sendBtn = document.getElementById("sendBtn");
+      const joinBtn = document.getElementById("joinRoomBtn");
+      const messageInput = document.getElementById("messageInput");
+
+      let role = "staff";
+      let facility_id = "6633";
+      let guardian_id = "2";
+      let staff_id = "24";
+
+      // ✅ 입력 필드 이벤트 바인딩
+      document
+        .getElementById("role")
+        .addEventListener("change", (e) => (role = e.target.value));
+      document
+        .getElementById("facility_id")
+        .addEventListener("input", (e) => (facility_id = e.target.value));
+      document
+        .getElementById("guardian_id")
+        .addEventListener("input", (e) => (guardian_id = e.target.value));
+      document
+        .getElementById("staff_id")
+        .addEventListener("input", (e) => (staff_id = e.target.value));
+
+      // ✅ 방 입장
+      joinBtn.addEventListener("click", () => {
+        if (!facility_id || !guardian_id) {
+          alert("facility_id와 guardian_id를 입력하세요.");
+          return;
+        }
+        socket.emit("joinRoom", { facility_id, guardian_id });
+        appendMessage(
+          "System",
+          `채팅방 ${facility_id}:${guardian_id} 입장`,
+          "system"
+        );
+      });
+
+      // ✅ 메시지 전송
+      sendBtn.addEventListener("click", () => {
+        const content = messageInput.value.trim();
+        if (!content) return;
+
+        const sender = role === "staff" ? staff_id : guardian_id;
+        const sender_type = role;
+
+        socket.emit("sendMessage", {
+          facility_id,
+          guardian_id,
+          sender,
+          sender_type,
+          content,
+        });
+
+        // 내가 보낸 메시지는 따로 append (서버에서 중복으로 받지 않게)
+        appendMessage(sender, content, role);
+        messageInput.value = "";
+      });
+
+      // ✅ 서버에서 과거 대화 수신
+      socket.on("chatHistory", (messages) => {
+        chatDiv.innerHTML = "";
+        messages.forEach((msg) => {
+          appendMessage(msg.sender_id, msg.content, msg.sender_type);
+        });
+      });
+
+      // ✅ 실시간 메시지 수신 (내 메시지는 다시 표시 안 함)
+      socket.on("receiveMessage", (msg) => {
+        const myId = role === "staff" ? staff_id : guardian_id;
+        if (String(msg.sender_id) === String(myId)) return; // 내가 보낸 건 무시
+        appendMessage(msg.sender_id, msg.content, msg.sender_type);
+      });
+
+      // 메시지 추가 함수
+      function appendMessage(sender, content, type = "system") {
+        const div = document.createElement("div");
+        div.className = "message " + type;
+        div.textContent = `[${sender}] ${content}`;
+        chatDiv.appendChild(div);
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+      }
+
+      // 디버그용
+      socket.on("connect", () => console.log("✅ Connected:", socket.id));
+      socket.on("disconnect", () => console.log("Disconnected"));
+    </script>
+  </body>
+</html>

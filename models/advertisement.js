@@ -60,6 +60,7 @@ module.exports = (sequelize, DataTypes) => {
 
   advertisement.associate = (models) => {
     advertisement.belongsTo(models.facility, { foreignKey: "facility_id" });
+    advertisement.belongsTo(models.staff, { foreignKey: "user_id" });
   };
 
   return advertisement;

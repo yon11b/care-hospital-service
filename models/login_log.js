@@ -23,6 +23,9 @@ module.exports = (sequelize, DataTypes) => {
       user_agent: {
         type: DataTypes.TEXT,
       },
+      login_result: {
+        type: DataTypes.BOOLEAN,
+      },
     },
     {
       tableName: "login_logs",
