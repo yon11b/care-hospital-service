@@ -76,6 +76,7 @@ module.exports = (sequelize, DataTypes) => {
       timestamps: true,
       comment: "치매 인지기능 평가 결과 테이블",
       createdAt: "exam_date",
+      updatedAt: "updated_at",
     }
   );
 

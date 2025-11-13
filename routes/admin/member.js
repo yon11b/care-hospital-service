@@ -7,8 +7,8 @@ const app = require("../../app");
 // 1. 회원 가입 차단 실행/해제 -> 블랙리스트
 // ========================================
 const USER_STATUS = {
-  NORMAL: 'normal',
-  BLACKLIST: 'blacklist',
+  NORMAL: "normal",
+  BLACKLIST: "blacklist",
 };
 // 1-1. 회원 가입 차단 실행
 // POST /admin/user/:userId/block
@@ -22,17 +22,17 @@ async function addUserToBlacklist(req, res) {
     const targetUser = await models.user.findByPk(userId);
 
     if (!targetUser) {
-      return res.status(404).json({        
-        Message: 'User not found',
-        ResultCode: 'USER_NOT_FOUND',
+      return res.status(404).json({
+        Message: "User not found",
+        ResultCode: "USER_NOT_FOUND",
       });
     }
 
     // 2. 이미 블랙리스트 상태라면
     if (targetUser.status === USER_STATUS.BLACKLIST) {
       return res.status(400).json({
-        Message: 'User is already blocked',
-        ResultCode: 'USER_ALREADY_BLOCKED',
+        Message: "User is already blocked",
+        ResultCode: "USER_ALREADY_BLOCKED",
       });
     }
 
@@ -42,19 +42,19 @@ async function addUserToBlacklist(req, res) {
 
     // 4. 응답
     return res.json({
-      Message: 'User has been blocked successfully',
-      ResultCode: 'OK',
+      Message: "User has been blocked successfully",
+      ResultCode: "OK",
       user: {
         id: targetUser.id,
         name: targetUser.name,
         status: targetUser.status,
       },
-    });    
+    });
   } catch (err) {
-    console.error('admin - addUserToBlacklist err:', err.message);
+    console.error("admin - addUserToBlacklist err:", err.message);
     res.status(500).json({
-      Message: 'Internal server error',
-      ResultCode: 'ERR_INTERNAL_SERVER',
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
       msg: err.toString(),
     });
   }
@@ -72,16 +72,16 @@ async function removeUserFromBlacklist(req, res) {
 
     if (!targetUser) {
       return res.status(404).json({
-        Message: 'User not found',
-        ResultCode: 'USER_NOT_FOUND',
+        Message: "User not found",
+        ResultCode: "USER_NOT_FOUND",
       });
     }
 
     // 2. 블랙리스트 상태가 아니면 해제할 필요 없음
     if (targetUser.status !== USER_STATUS.BLACKLIST) {
       return res.status(400).json({
-        Message: 'User is not blacklisted',
-        ResultCode: 'USER_NOT_BLACKLISTED',
+        Message: "User is not blacklisted",
+        ResultCode: "USER_NOT_BLACKLISTED",
       });
     }
 
@@ -91,8 +91,8 @@ async function removeUserFromBlacklist(req, res) {
 
     // 4. 성공 응답
     return res.json({
-      Message: 'User has been unblocked successfully',
-      ResultCode: 'OK',
+      Message: "User has been unblocked successfully",
+      ResultCode: "OK",
       user: {
         id: targetUser.id,
         name: targetUser.name,
@@ -100,10 +100,10 @@ async function removeUserFromBlacklist(req, res) {
       },
     });
   } catch (err) {
-    console.error('admin - removeUserFromBlacklist err:', err.message);
+    console.error("admin - removeUserFromBlacklist err:", err.message);
     res.status(500).json({
-      Message: 'Internal server error',
-      ResultCode: 'ERR_INTERNAL_SERVER',
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
       msg: err.toString(),
     });
   }
@@ -139,13 +139,14 @@ async function getUsersList(req, res) {
     }
 
     // 조회
-    const { count: totalUsers, rows: users } = await models.user.findAndCountAll({
-      where,
-      order: [[sortBy, sortOrder]],
-      limit: size,
-      offset,
-      attributes: ["id", "name", "email", "phone", "status", "created_at"],
-    });
+    const { count: totalUsers, rows: users } =
+      await models.user.findAndCountAll({
+        where,
+        order: [[sortBy, sortOrder]],
+        limit: size,
+        offset,
+        attributes: ["id", "name", "email", "phone", "status", "created_at"],
+      });
 
     res.json({
       Message: "Users list successfully",
@@ -159,14 +160,15 @@ async function getUsersList(req, res) {
       data: users,
     });
   } catch (err) {
-    console.error('admin - getUsersList err:', err.message);
+    console.error("admin - getUsersList err:", err.message);
     res.status(500).json({
-      Message: 'Internal server error',
-      ResultCode: 'ERR_INTERNAL_SERVER',
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
       msg: err.toString(),
     });
   }
 }
+
 // 2-2. 회원(사용자) 상세 조회
 // GET /admin/members/users/:userId
 async function getUserDetail(req, res) {
@@ -174,8 +176,8 @@ async function getUserDetail(req, res) {
     const userId = parseInt(req.params.userId, 10);
     if (isNaN(userId)) {
       return res.status(400).json({
-        ResultCode: 'ERR_INVALID_PARAM',
-        Message: 'Invalid userId parameter'
+        ResultCode: "ERR_INVALID_PARAM",
+        Message: "Invalid userId parameter",
       });
     }
 
@@ -185,42 +187,55 @@ async function getUserDetail(req, res) {
       include: [
         {
           model: models.user_sns,
-          attributes: ['provider'],
-          required: false
-        }
+          attributes: ["provider"],
+          required: false,
+        },
       ],
-      attributes: ['id', 'name', 'email', 'phone', 'status', 'created_at']
+      attributes: ["id", "name", "email", "phone", "status", "created_at"],
     });
 
     if (!userInfo) {
       return res.status(404).json({
-        ResultCode: 'ERR_NOT_FOUND',
-        Message: 'User not found'
+        ResultCode: "ERR_NOT_FOUND",
+        Message: "User not found",
       });
     }
 
     // 2. 사용자 활동 통계 (Promise.all로 동시에 조회)
-    const [reservationCount, communityCount, commentCount, reviewStats] = await Promise.all([
-      models.reservation.count({ where: { user_id: userId } }),
-      models.community.count({ where: { user_id: userId } }),
-      models.comment.count({ where: { user_id: userId } }),
-      models.review.findOne({
-        where: { user_id: userId },
-        attributes: [
-          [models.review.sequelize.fn('COUNT', models.review.sequelize.col('id')), 'count'],
-          [models.review.sequelize.fn('AVG', models.review.sequelize.col('rating')), 'avgRating']
-        ],
-        raw: true
-      })
-    ]);
+    const [reservationCount, communityCount, commentCount, reviewStats] =
+      await Promise.all([
+        models.reservation.count({ where: { user_id: userId } }),
+        models.community.count({ where: { user_id: userId } }),
+        models.comment.count({ where: { user_id: userId } }),
+        models.review.findOne({
+          where: { user_id: userId },
+          attributes: [
+            [
+              models.review.sequelize.fn(
+                "COUNT",
+                models.review.sequelize.col("id")
+              ),
+              "count",
+            ],
+            [
+              models.review.sequelize.fn(
+                "AVG",
+                models.review.sequelize.col("rating")
+              ),
+              "avgRating",
+            ],
+          ],
+          raw: true,
+        }),
+      ]);
 
     const reviewsCount = Number(reviewStats.count || 0);
     const reviewsAvgRating = Number(reviewStats.avgRating || 0).toFixed(2);
 
     // 3. 응답 구성
     res.status(200).json({
-      ResultCode: 'OK',
-      Message: 'User detail successfully',
+      ResultCode: "OK",
+      Message: "User detail successfully",
       data: {
         user: userInfo,
         summary: {
@@ -228,17 +243,16 @@ async function getUserDetail(req, res) {
           reviews_count: reviewsCount,
           reviews_avg_rating: reviewsAvgRating,
           community_posts_count: communityCount,
-          comments_count: commentCount
-        }
-      }
+          comments_count: commentCount,
+        },
+      },
     });
-
   } catch (err) {
-    console.error('admin - getUserDetail err:', err);
+    console.error("admin - getUserDetail err:", err);
     res.status(500).json({
-      Message: 'Internal server error',
-      ResultCode: 'ERR_INTERNAL_SERVER',
-      msg: err.toString()
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      msg: err.toString(),
     });
   }
 }
@@ -256,51 +270,61 @@ async function getStaffsList(req, res) {
     const offset = (page - 1) * limit;
 
     // 검색 및 필터
-    const keyword = req.query.keyword || '';
+    const keyword = req.query.keyword || "";
+    const role = req.query.role || "";
     const approval_status = req.query.approval_status; // 승인 상태
 
     // 안전한 정렬
-    const allowedSortColumns = ['created_at', 'name', 'email', 'role'];
-    const sortBy = allowedSortColumns.includes(req.query.sortBy) ? req.query.sortBy : 'created_at';
-    const sortOrder = req.query.sortOrder === 'ASC' ? 'ASC' : 'DESC';
+    const allowedSortColumns = ["created_at", "name", "email", "role"];
+    const sortBy = allowedSortColumns.includes(req.query.sortBy)
+      ? req.query.sortBy
+      : "created_at";
+    const sortOrder = req.query.sortOrder === "ASC" ? "ASC" : "DESC";
 
     // 직원 조건 (role=staff or owner)
     const staffWhere = {
-      role: { [Op.in]: ['staff', 'owner'] },
+      role: { [Op.in]: ["staff", "owner"] },
     };
     if (approval_status) staffWhere.approval_status = approval_status;
 
     // 직원 + 기관 이름 통합 검색
     if (keyword) {
       staffWhere[Op.or] = [
-        { name: { [Op.iLike]: `%${keyword}%` } },       // 직원 이름
-        { email: { [Op.iLike]: `%${keyword}%` } },      // 직원 이메일
-        { '$facility.name$': { [Op.iLike]: `%${keyword}%` } }, // 기관 이름
+        { name: { [Op.iLike]: `%${keyword}%` } }, // 직원 이름
+        { email: { [Op.iLike]: `%${keyword}%` } }, // 직원 이메일
+        { "$facility.name$": { [Op.iLike]: `%${keyword}%` } }, // 기관 이름
       ];
+    }
+    // 역할 검색
+    if (role) {
+      if (["staff", "owner"].includes(role)) {
+        staffWhere.role = role;
+      }
     }
 
     // 직원 기준 조회 + 전체 count (findAndCountAll)
-    const { count: totalCount, rows: staffs } = await models.staff.findAndCountAll({
-      where: staffWhere,
-      include: [
-        {
-          model: models.facility,
-          attributes: ['name'],
-          required: true, // 직원만 있는 기관
-        },
-      ],
-      order: [
-        [sortBy, sortOrder],
-        ['role', 'ASC'],
-      ],
-      limit,
-      offset,
-      distinct: true, // 중복 직원 제거
-    });
+    const { count: totalCount, rows: staffs } =
+      await models.staff.findAndCountAll({
+        where: staffWhere,
+        include: [
+          {
+            model: models.facility,
+            attributes: ["name"],
+            required: true, // 직원만 있는 기관
+          },
+        ],
+        order: [
+          [sortBy, sortOrder],
+          ["role", "ASC"],
+        ],
+        limit,
+        offset,
+        distinct: true, // 중복 직원 제거
+      });
 
     // 직원 배열 가공
-    const staffList = staffs.map(s => ({
-      facility_name: s.facility?.name || '', // 소속 기관
+    const staffList = staffs.map((s) => ({
+      facility_name: s.facility?.name || "", // 소속 기관
       role: s.role,
       name: s.name,
       email: s.email,
@@ -310,8 +334,8 @@ async function getStaffsList(req, res) {
     }));
 
     res.json({
-      ResultCode: 'SUCCESS',
-      Message: '기관 회원 목록 조회 성공',
+      ResultCode: "SUCCESS",
+      Message: "기관 회원 목록 조회 성공",
       data: staffList,
       pagination: {
         page,
@@ -320,12 +344,11 @@ async function getStaffsList(req, res) {
         totalCount,
       },
     });
-
   } catch (err) {
-    console.error('admin - getStaffsList err:', err.message);
+    console.error("admin - getStaffsList err:", err.message);
     res.status(500).json({
-      Message: 'Internal server error',
-      ResultCode: 'ERR_INTERNAL_SERVER',
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
       msg: err.toString(),
     });
   }
@@ -340,7 +363,7 @@ async function getFacilitiesList(req, res) {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;
     const offset = (page - 1) * limit;
-    const keyword = req.query.keyword || '';
+    const keyword = req.query.keyword || "";
 
     // 검색 조건
     const where = {};
@@ -349,29 +372,30 @@ async function getFacilitiesList(req, res) {
     }
 
     // 기관 조회 + 대표, 직원 수 포함
-    const { count: totalCount, rows: facilities } = await models.facility.findAndCountAll({
-      where,
-      include: [
-        {
-          model: models.staff,
-          attributes: ['role', 'id'],
-        },
-      ],
-      order: [['created_at', 'DESC']],
-      limit,
-      offset,
-      distinct: true,
-    });
+    const { count: totalCount, rows: facilities } =
+      await models.facility.findAndCountAll({
+        where,
+        include: [
+          {
+            model: models.staff,
+            attributes: ["role", "id"],
+          },
+        ],
+        order: [["created_at", "DESC"]],
+        limit,
+        offset,
+        distinct: true,
+      });
 
     // 데이터 가공
-    const data = facilities.map(f => {
-      const owner = f.staffs.find(s => s.role === 'owner');
-      const staffCount = f.staffs.filter(s => s.role === 'staff').length;
+    const data = facilities.map((f) => {
+      const owner = f.staffs.find((s) => s.role === "owner");
+      const staffCount = f.staffs.filter((s) => s.role === "staff").length;
 
       return {
         id: f.id,
         name: f.name,
-        owner_name: owner?.name || '',
+        owner_name: owner?.name || "",
         staff_count: staffCount,
         approval_status: f.approval_status,
         created_at: f.created_at,
@@ -379,8 +403,8 @@ async function getFacilitiesList(req, res) {
     });
 
     res.json({
-      ResultCode: 'SUCCESS',
-      Message: '기관 목록 조회 성공',
+      ResultCode: "SUCCESS",
+      Message: "기관 목록 조회 성공",
       data,
       pagination: {
         page,
@@ -390,10 +414,10 @@ async function getFacilitiesList(req, res) {
       },
     });
   } catch (err) {
-    console.error('admin - getFacilitiesList err:', err);
+    console.error("admin - getFacilitiesList err:", err);
     res.status(500).json({
-      ResultCode: 'ERR_INTERNAL_SERVER',
-      Message: 'Internal server error',
+      ResultCode: "ERR_INTERNAL_SERVER",
+      Message: "Internal server error",
       msg: err.toString(),
     });
   }
@@ -407,40 +431,86 @@ async function getFacilityStaffs(req, res) {
     const facilityId = parseInt(req.params.facilityId, 10);
     if (isNaN(facilityId)) {
       return res.status(400).json({
-        ResultCode: 'ERR_INVALID_PARAM',
-        Message: 'Invalid facilityId parameter',
+        ResultCode: "ERR_INVALID_PARAM",
+        Message: "Invalid facilityId parameter",
       });
     }
 
     const staffs = await models.staff.findAll({
       where: { facility_id: facilityId },
-      attributes: ['id', 'name', 'email', 'role', 'approval_status', 'created_at'],
-      order: [['role', 'ASC'], ['created_at', 'ASC']],
+      attributes: [
+        "id",
+        "name",
+        "email",
+        "role",
+        "approval_status",
+        "created_at",
+      ],
+      order: [
+        ["role", "ASC"],
+        ["created_at", "ASC"],
+      ],
     });
 
     res.json({
-      ResultCode: 'SUCCESS',
-      Message: '직원 목록 조회 성공',
+      ResultCode: "SUCCESS",
+      Message: "직원 목록 조회 성공",
       data: staffs,
     });
   } catch (err) {
-    console.error('admin - getFacilityStaffs err:', err);
+    console.error("admin - getFacilityStaffs err:", err);
     res.status(500).json({
-      ResultCode: 'ERR_INTERNAL_SERVER',
-      Message: 'Internal server error',
+      ResultCode: "ERR_INTERNAL_SERVER",
+      Message: "Internal server error",
       msg: err.toString(),
     });
   }
 }
 
-module.exports = { 
-    addUserToBlacklist,
-    removeUserFromBlacklist,
-    getUsersList,
-    getUserDetail,
-    getStaffsList,
-    //getStaffDetail,
+// 승인 상태 변경
+async function updateStaffStatus(req, res) {
+  try {
+    const { userId, name, password, email, role, approval_status } = req.body;
 
-    getFacilitiesList,
-    getFacilityStaffs
+    if (userId) {
+      // 기존 사용자 업데이트
+      const existingUser = await models.staff.findOne({
+        where: {
+          id: userId,
+        },
+      });
+      if (!existingUser) {
+        return res
+          .status(404)
+          .json({ result: false, msg: "사용자를 찾을 수 없습니다." });
+      }
+      const updateData = {};
+      if (name) updateData.name = name;
+      if (password) updateData.password = password; // 이미 해시 처리한 경우
+      if (email) updateData.email = email;
+      if (role) updateData.role = role;
+      if (approval_status) updateData.approval_status = approval_status;
+
+      await models.staff.update(updateData, {
+        where: { id: userId },
+      });
+      return res.status(200).json({ result: true });
+    }
+  } catch (err) {
+    console.error(err);
+    return res.status(400).json({ result: false, msg: err.toString() });
+  }
+}
+
+module.exports = {
+  addUserToBlacklist,
+  removeUserFromBlacklist,
+  getUsersList,
+  getUserDetail,
+  getStaffsList,
+  //getStaffDetail,
+
+  getFacilitiesList,
+  getFacilityStaffs,
+  updateStaffStatus,
 };

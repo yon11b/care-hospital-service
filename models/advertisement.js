@@ -11,13 +11,16 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         comment: "Primary Key",
       },
+      user_id: {
+        type: DataTypes.INTEGER,
+      },
       // 기관 id
       facility_id: {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
       // 광고 내용
-      description:{
+      description: {
         type: DataTypes.TEXT,
         allowNull: true,
       },
@@ -25,7 +28,7 @@ module.exports = (sequelize, DataTypes) => {
       approval_status: {
         type: DataTypes.STRING,
         allowNull: true,
-        defaultValue: 'pending',
+        defaultValue: "pending",
         comment: "승인, 거절, 대기",
       },
       // 광고 시작일
@@ -56,6 +59,7 @@ module.exports = (sequelize, DataTypes) => {
 
   advertisement.associate = (models) => {
     advertisement.belongsTo(models.facility, { foreignKey: "facility_id" });
+    advertisement.belongsTo(models.staff, { foreignKey: "user_id" });
   };
 
   return advertisement;

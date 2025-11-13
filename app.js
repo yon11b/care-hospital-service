@@ -17,7 +17,8 @@ const config = require("./config/config.json")[
 const viewPath = config.path;
 var app = express();
 const corsOptions = {
-  origin: true,
+  // origin: true,
+  origin: "http://localhost:5173",
   credentials: true,
 };
 app.use(cors(corsOptions));
@@ -92,6 +93,10 @@ app.use((req, res, next) => {
   err.status = 404;
   next(err);
 });
+
+// cron 실행
+//require("./monitors/cron");
+//require("./monitors/runAnomalyDetection");
 
 // development error handler
 // will print stacktrace

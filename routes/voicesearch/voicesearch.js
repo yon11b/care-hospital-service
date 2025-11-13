@@ -145,9 +145,11 @@ async function searchFacilities(req, res) {
         .status(400)
         .send({ result: false, msg: "userSentence required" });
     }
-    console.log(gptPrompt);
+    //console.log(gptPrompt);
 
     const promptResult = await gptPromptJson(gptPrompt);
+    console.log(promptResult);
+    console.log("===============");
     const facilities = await findFacilities(promptResult);
 
     // 🔹 최종 JSON 반환

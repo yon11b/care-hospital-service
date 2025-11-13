@@ -51,7 +51,7 @@ async function getActiveUsers(req, res) {
   }
 }
 
-// 최근 1개월 신규 회원 조회
+// 최근 3개월 신규 회원 조회
 async function getNewUsers(req, res) {
   try {
     // 관리자 권한 체크

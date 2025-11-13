@@ -144,11 +144,18 @@ async function upsertUser(req, res) {
       facility_id,
       facility_number,
       facility_token,
+      approval_status,
     } = req.body;
-    const userId = req.session.user?.id;
+
+    const currentUser = req.session.user;
+    if (!currentUser) {
+      return res
+        .status(401)
+        .json({ result: false, msg: "로그인이 필요합니다." });
+    }
 
     // 기존 사용자 조회
-    const existingUser = await models.staff.findOne({ where: { id: userId } });
+    const existingUser = await models.staff.findOne({ where: { id: currentUser.user.id } });
 
     if (!existingUser) {
       // 신규 사용자 처리
@@ -188,23 +195,21 @@ async function upsertUser(req, res) {
     } else {
       // 기존 사용자 업데이트
       const oldFacilityNumber = existingUser.facility_number;
+      const updateData = {};
+      if (name) updateData.name = name;
+      if (password) updateData.password = sha256(password);
+      if (email) updateData.email = email;
+      if (role) updateData.role = role;
+      if (facility_number) updateData.facility_number = facility_number;
+      if (approval_status) updateData.approval_status = approval_status;
 
-      await models.staff.update(
-        {
-          name,
-          password: sha256(password),
-          email,
-          role,
-          facility_number,
-        },
-        { where: { id: userId } }
-      );
+      await models.staff.update(updateData, { where: { id: userId } });
 
       // 시설 로그 기록
       if (facility_number && facility_number !== oldFacilityNumber) {
         await models.facility_log.create({
           facility_id: existingUser.facility_id,
-          user_id: userId,
+          user_id: existingUser.id,
           action: "UPDATE",
           changed_data: {
             facility_number: {
@@ -250,6 +255,7 @@ async function login(req, res) {
         user_type: "staff",
         ip_address: req.ip,
         user_agent: req.headers["user-agent"],
+        login_result: true,
       });
       req.session.user = user;
       return res.status(200).send({
@@ -258,6 +264,20 @@ async function login(req, res) {
         Response: user,
       });
     } else {
+      const isEmail = await models.staff.findOne({
+        where: {
+          email: req.body.email,
+        },
+      });
+      if (isEmail) {
+        await models.login_log.create({
+          user_id: isEmail.id,
+          user_type: "staff",
+          ip_address: req.ip,
+          user_agent: req.headers["user-agent"],
+          login_result: false,
+        });
+      }
       return res.status(401).send({
         Message: "Invalid email or password.",
         ResultCode: "ERR_INVALID_CREDENTIALS",

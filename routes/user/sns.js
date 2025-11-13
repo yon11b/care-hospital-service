@@ -223,12 +223,27 @@ async function handleCallback(req, res, provider) {
 
     // (4) JWT 발급
     const token = generateToken(userInstance);
+    if (!token) {
+      await models.login_log.create({
+        user_id: userInstance.id,
+        user_type: "guardian",
+        ip_address: req.ip,
+        user_agent: req.headers["user-agent"],
+        login_at: new Date(),
+        login_result: false,
+      });
+      res.status(500).json({
+        message: `${provider} login failed`,
+      });
+    }
+
     await models.login_log.create({
       user_id: userInstance.id,
       user_type: "guardian",
       ip_address: req.ip,
       user_agent: req.headers["user-agent"],
       login_at: new Date(),
+      login_result: true,
     });
     if (process.env.NODE_ENV === "development") {
       // 테스트
