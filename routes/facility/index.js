@@ -66,7 +66,10 @@ const{
   updatePatientStatistics,
   getReservationStatistics,
   getChatStatistics,
-  getFacilityOverview,
+  
+  getFacilityStatistics,
+  getLatestReservations,
+  getLatestChats
 }=require("./statistics");
 
 router.get("/:id", getFacility);
@@ -108,11 +111,13 @@ router.post("/:facilityId/dashboard/advertisements", requireRole(["staff", "owne
 router.patch("/:facilityId/dashboard/advertisements/:adId", requireRole(["staff", "owner"]), updateAd) // 기관의 광고 수정
 
 // 기관의 통계 기능
-router.get("/:facilityId/dashboard/overview", requireRole(["staff", "owner"]), getFacilityOverview); // 대시보드
+router.get("/:facilityId/overview/statistics", requireRole(["staff", "owner"]), getFacilityStatistics); // 대시보드 overview 페이지 통계
+router.get("/:facilityId/overview/latest-reservations", requireRole(["staff", "owner"]), getLatestReservations); // 대시보드 overview 페이지 최신 예약 5개 
+router.get("/:facilityId/overview/latest-chats", requireRole(["staff", "owner"]), getLatestChats); // 대시보드 overview 페이지 최신 상담 5개 
+
 router.get("/:facilityId/dashboard/statistics/patients", requireRole(["staff", "owner"]), getPatientStatistics); // 환자 통계
 router.patch("/:facilityId/dashboard/statistics/patients", requireRole(["staff", "owner"]), updatePatientStatistics); // 환자 통계 수정하기
 router.get("/:facilityId/dashboard/statistics/reservations", requireRole(["staff", "owner"]), getReservationStatistics); // 예약 통계
 router.get("/:facilityId/dashboard/statistics/chats", requireRole(["staff", "owner"]), getChatStatistics); // 상담 통계
-
 
 module.exports = router;

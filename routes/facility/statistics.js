@@ -256,13 +256,12 @@ async function getChatStatistics(req, res) {
   }
 }
 
-// 1-4. 대시보드 overview 
-// GET /facilities/{facilityId}/Overview
+// 1-4. 대시보드 통계 overview 
+// GET /facilities/{facilityId}/overview/statistics
 // 오늘의 예약 수, 오늘의 상담 수, 환자 현황, 병상 현황,
-// 최신 예약 목록(5개), 최신 상담 목록(5개)
-async function getFacilityOverview(req, res) {
+async function getFacilityStatistics(req, res) {
   try {
-    const staff = req.session.user; // 이미 requireRole에서 체크됨
+    const staff = req.session.user;
     const facilityId = parseInt(req.params.facilityId, 10);
 
     if (isNaN(facilityId)) {
@@ -279,21 +278,18 @@ async function getFacilityOverview(req, res) {
       });
     }
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD, 오늘 날짜
-
+    const today = new Date().toISOString().split('T')[0];
     // Promise.all로 병렬 처리
     const [
-      todayResrvations,
+      todayReservations,
       todayChats,
-      status,
-      latestReservations,
-      latestChats
+      status
     ] = await Promise.all([
       // 1. 오늘 예약 수
       models.reservation.count({
         where: {
           facility_id: facilityId,
-          reserved_date: today,  // 오늘 예약만 카운트
+          reserved_date: today,
         },
       }),
 
@@ -301,35 +297,13 @@ async function getFacilityOverview(req, res) {
       models.chat_room.count({
         where: {
           facility_id: facilityId,
-          created_at: { [Op.gte]: today }, // 오늘 생성된 채팅
+          created_at: { [Op.gte]: today },
         },
       }),
 
-      // 3. 환자 수, 병상 수
+      // 3. 시설 상태 정보 - 환자 수, 병상 수
       models.facility_status.findOne({
         where: { facility_id: facilityId },
-      }),
-
-      // 4. 최신 예약 목록(5개)
-      models.reservation.findAll({
-        where: { facility_id: facilityId },
-        order: [['created_at', 'DESC']],
-        limit: 5,
-        attributes: ['id', 'patient_name', 'reserved_date', 'reserved_time', 'status'],
-      }),
-
-      // 5. 최신 상담 목록(5개)
-      models.chat_room.findAll({
-        where: { facility_id: facilityId },
-        order: [['created_at', 'DESC']],
-        limit: 5,
-        attributes: ['room_id', 'last_message', 'created_at'],
-        include: [
-          {
-            model: models.user,  // 'user' 모델을 포함
-            attributes: ['name'], // 'name' 속성만 조회
-          },
-        ],
       }),
     ]);
 
@@ -345,20 +319,23 @@ async function getFacilityOverview(req, res) {
     const usedBeds = totalPatients;
     const remainingBeds = Math.max(userCapacity - totalPatients, 0);
     const occupancyRate = userCapacity > 0 ? ((usedBeds / userCapacity) * 100).toFixed(2) : 0;
+    const manPatients = status.man_patients_count || 0;     // 남자 환자 수
+    const womanPatients = status.woman_patients_count || 0; // 여자 환자 수
 
+    // res.setHeader('Cache-Control', 'no-store'); // 응답에서 캐시 방지
     res.status(200).json({
       Message: "overview 통계 조회 성공",
       ResultCode: "SUCCESS",
       data: {
-        todayResrvations,
+        todayReservations,
         todayChats,
         totalPatients,
+        manPatients,
+        womanPatients,
         userCapacity,
         usedBeds,
         remainingBeds,
         occupancyRate: Number(occupancyRate),
-        latestReservations,
-        latestChats,
       },
     });
   } catch (error) {
@@ -371,10 +348,105 @@ async function getFacilityOverview(req, res) {
   }
 }
 
+// 1-5. 대시보드 overview - 최신 예약 정보 
+// GET /facilities/{facilityId}/overview/latest-reservations
+// 최신 예약 목록(5개)
+async function getLatestReservations(req, res) {
+  try {
+    const staff = req.session.user;
+    const facilityId = parseInt(req.params.facilityId, 10);
+
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        Message: "유효하지 않은 파라미터",
+        ResultCode: "ERR_INVALID_PARAMETER",
+      });
+    }
+
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({
+        Message: "해당 기관의 직원이 아닙니다.",
+        ResultCode: "ERR_FORBIDDEN",
+      });
+    }
+
+    const latestReservations = await models.reservation.findAll({
+      where: { facility_id: facilityId },
+      order: [['created_at', 'DESC']],
+      limit: 5,
+      attributes: ['id', 'patient_name', 'reserved_date', 'reserved_time', 'status'],
+    });
+
+    res.status(200).json({
+      Message: "최신 예약 목록 조회 성공",
+      ResultCode: "SUCCESS",
+      data: latestReservations,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      Message: "최신 예약 목록 조회 실패",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      error,
+    });
+  }
+}
+
+// 1-6. 대시보드 overview - 최신 상담 정보
+// GET /facilities/{facilityId}/overview/latest-chats
+// 최신 상담 목록(5개)
+async function getLatestChats(req, res) {
+  try {
+    const staff = req.session.user;
+    const facilityId = parseInt(req.params.facilityId, 10);
+
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        Message: "유효하지 않은 파라미터",
+        ResultCode: "ERR_INVALID_PARAMETER",
+      });
+    }
+
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({
+        Message: "해당 기관의 직원이 아닙니다.",
+        ResultCode: "ERR_FORBIDDEN",
+      });
+    }
+
+    const latestChats = await models.chat_room.findAll({
+      where: { facility_id: facilityId },
+      order: [['created_at', 'DESC']],
+      limit: 5,
+      attributes: ['room_id', 'last_message', 'created_at'],
+      include: [{
+        model: models.user,
+        attributes: ['name'],
+      }],
+    });
+
+    res.status(200).json({
+      Message: "최신 상담 목록 조회 성공",
+      ResultCode: "SUCCESS",
+      data: latestChats,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      Message: "최신 상담 목록 조회 실패",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      error,
+    });
+  }
+}
+
 module.exports = { 
     getPatientStatistics,
     updatePatientStatistics,
     getReservationStatistics,
     getChatStatistics,
-    getFacilityOverview,
+    
+    getFacilityStatistics,
+    getLatestReservations,
+    getLatestChats
 };
