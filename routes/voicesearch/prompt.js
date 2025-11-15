@@ -2,8 +2,8 @@
 const OpenAI = require("openai");
 const axios = require("axios");
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const REST_API_KEY = process.env.KAKAO_REST_API_KEY;
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function searchPlace(query) {
   if (!query) return null;
@@ -43,7 +43,7 @@ async function gptPromptJson(text) {
 
 JSON 구조는 다음과 같다:
 {
-  "facility_kind": "요양병원" | "요양원" | "주간보호센터" | null,
+  "facility_kind": "요양병원" | "요양원" | "주야간보호센터" | null,
   "location": {
     "sido": string | null,
     "sggu": string | null,
@@ -81,6 +81,7 @@ JSON 구조는 다음과 같다:
   // “내 근처 / 주변” 문장일 때 처리
   const isNearMeSearch = /근처|주변/.test(text);
   if (isNearMeSearch) {
+    filter.location.near_me = true;
     filter.location.sido = null;
     filter.location.sggu = null;
     filter.location.dong = null;

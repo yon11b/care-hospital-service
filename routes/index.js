@@ -15,5 +15,5 @@ router.use("/exam", require("./exam"));
 router.use("/search/voice", require("./voicesearch"));
 router.use("/chats", require("./chats"));
 router.use("/ecommerce", require("./ecommerce"));
-router.use("/dashboard", require("./dashboard"));
+//router.use("/dashboard", require("./.dashboard"));
 module.exports = router;

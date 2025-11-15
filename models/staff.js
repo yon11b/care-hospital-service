@@ -58,6 +58,10 @@ module.exports = (sequelize, DataTypes) => {
       foreignKey: "user_id",
       onDelete: "CASCADE",
     });
+    staff.hasMany(models.advertisement, {
+      foreignKey: "user_id",
+      onDelete: "CASCADE",
+    });
   };
 
   return staff;
