@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 
 // 개발 환경에서는 fallback으로 'your_jwt_secret' 사용 가능
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
-const JWT_EXPIRE = '1h'; // 만료시간 1시간
+const JWT_EXPIRE = '7d'; // 만료기간 7일
 
 // jwt 생성
 function generateToken(user) {
