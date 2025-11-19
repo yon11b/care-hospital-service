@@ -1,6 +1,8 @@
 const models = require("../../models");
 const { Op } = require("sequelize");
 const sequelize = models.sequelize; 
+const Sequelize = require("sequelize");
+const moment = require('moment'); // 날짜 처리 라이브러리
 
 // ========================================
 // 1. 통계 
@@ -440,6 +442,75 @@ async function getLatestChats(req, res) {
   }
 }
 
+// 1-6. 대시보드 overview 차트
+// GET /facilities/{facilityId}/overview/monthly-charts
+// 예약, 상담 월별 개수
+async function getMonthlyCharts(req, res) {
+  try {
+    const staff = req.session.user;
+    const facilityId = parseInt(req.params.facilityId, 10);
+
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        Message: "유효하지 않은 파라미터",
+        ResultCode: "ERR_INVALID_PARAMETER",
+      });
+    }
+
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({
+        Message: "해당 기관의 직원이 아닙니다.",
+        ResultCode: "ERR_FORBIDDEN",
+      });
+    }
+
+    // 1. 예약 월별 집계
+    const reservationData = await models.reservation.findAll({
+      attributes: [
+        [Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('reserved_date')), 'month'],
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'count'],
+      ],
+      where: { facility_id: facilityId },
+      group: ['month'],
+      order: [['month', 'ASC']],
+      raw: true,
+    });
+
+    // 2. 상담 월별 집계
+    const consultationData = await models.chat_room.findAll({
+      attributes: [
+        [Sequelize.fn('DATE_TRUNC', 'month', Sequelize.col('updated_at')), 'month'],
+        [Sequelize.fn('COUNT', Sequelize.col('room_id')), 'count'],
+      ],
+      where: { facility_id: facilityId },
+      group: ['month'],
+      order: [['month', 'ASC']],
+      raw: true,
+    });
+
+    // 3. 0 채우기 (최신 12개월 기준)
+    const months = Array.from({ length: 12 }, (_, i) => moment().subtract(11 - i, 'months').startOf('month').format('YYYY-MM-DD'));
+
+    const fillData = (data) => {
+      const map = {};
+      data.forEach(item => {
+        map[moment(item.month).format('YYYY-MM-DD')] = parseInt(item.count, 10);
+      });
+      return months.map(m => ({ month: m, count: map[m] || 0 }));
+    };
+
+    res.json({
+      Message: "월별 집계 조회 성공",
+      ResultCode: "SUCCESS",      
+      reservations: fillData(reservationData),
+      consultations: fillData(consultationData),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: '서버 오류 발생' });
+  }
+}
+
 module.exports = { 
     getPatientStatistics,
     updatePatientStatistics,
@@ -448,5 +519,6 @@ module.exports = {
     
     getFacilityStatistics,
     getLatestReservations,
-    getLatestChats
+    getLatestChats,
+    getMonthlyCharts,
 };

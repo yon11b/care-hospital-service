@@ -69,7 +69,8 @@ const{
   
   getFacilityStatistics,
   getLatestReservations,
-  getLatestChats
+  getLatestChats,
+  getMonthlyCharts,
 }=require("./statistics");
 
 router.get("/:id", getFacility);
@@ -114,6 +115,7 @@ router.patch("/:facilityId/dashboard/advertisements/:adId", requireRole(["staff"
 router.get("/:facilityId/overview/statistics", requireRole(["staff", "owner"]), getFacilityStatistics); // 대시보드 overview 페이지 통계
 router.get("/:facilityId/overview/latest-reservations", requireRole(["staff", "owner"]), getLatestReservations); // 대시보드 overview 페이지 최신 예약 5개 
 router.get("/:facilityId/overview/latest-chats", requireRole(["staff", "owner"]), getLatestChats); // 대시보드 overview 페이지 최신 상담 5개 
+router.get('/:facilityId/overview/monthly-charts', requireRole(["staff", "owner"]), getMonthlyCharts); // 대시보드 overview 페이지 월별 집계 차트
 
 router.get("/:facilityId/dashboard/statistics/patients", requireRole(["staff", "owner"]), getPatientStatistics); // 환자 통계
 router.patch("/:facilityId/dashboard/statistics/patients", requireRole(["staff", "owner"]), updatePatientStatistics); // 환자 통계 수정하기
