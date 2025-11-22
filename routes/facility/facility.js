@@ -363,6 +363,10 @@ async function getNotice(req, res) {
     });
   }
 }
+
+// 기관 대시보드 공지사항 전체 조회 
+// -> 추가 수정 사항 : 특정 기관의 공지사항 조회로 변경
+// -> session의 facility_id 조건에 추가
 async function getNotices(req, res) {
   try {
     const page = parseInt(req.query.page) || 1; // 기본 1페이지
@@ -370,19 +374,35 @@ async function getNotices(req, res) {
     const offset = (page - 1) * limit;
     const { keyword } = req.query;
 
+    // 해당 기관의 유저만...
+    if (
+      !req.session.user ||
+      req.session.user.facility_id != req.params.facilityid
+    ) {
+      return res.status(401).send({
+        Message: "Unauthorized",
+        ResultCode: "ERR_UNAUTHORIZED",
+      });
+    } 
+
+    // 조건 필터
+    const whereCondition = {
+      facility_id: req.session.user.facility_id, 
+      ...(keyword && {
+        [Op.or]: [
+          { title: { [Op.iLike]: `%${keyword}%` } },
+          { content: { [Op.iLike]: `%${keyword}%` } },
+        ],
+      }),
+    };
+
     const resp = await models.notice.findAll({
-      where: keyword
-        ? {
-            [Op.or]: [
-              { title: { [Op.iLike]: `%${keyword}%` } },
-              { content: { [Op.iLike]: `%${keyword}%` } },
-            ],
-          }
-        : {},
+      where: whereCondition,
       order: [["created_at", "DESC"]],
       limit,
       offset,
     });
+
     res.json({
       Message: "Notifications select successfully.",
       ResultCode: "ERR_OK",

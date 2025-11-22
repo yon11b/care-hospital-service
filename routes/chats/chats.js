@@ -95,7 +95,7 @@ async function getMessages(req, res) {
 
     const messages = await models.chat_message.findAll({
       where: { room_id },
-      order: [["created_at", "DESC"]], // 최신이 아래
+      order: [["created_at", "ASC"]], // 최신이 아래
     });
 
     res.json({
