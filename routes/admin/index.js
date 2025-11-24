@@ -26,6 +26,8 @@ const {
   getMonthlyUsers,
   getActiveUsers,
   getUsers,
+  getReviews,
+  getReview,
   getDatas,
 } = require("./statistics");
 const {
@@ -82,6 +84,8 @@ router.get(
   requireRole("admin"),
   getActiveUsers
 );
+router.get("/statistics/reviews", requireRole("admin"), getReviews);
+router.get("/statistics/reviews/:reviewId", requireRole("admin"), getReview);
 router.get("/statistics/users", requireRole("admin"), getUsers);
 router.get("/statistics/datas", requireRole("admin"), getDatas);
 

@@ -84,13 +84,26 @@ async function getReportDetail(req, res) {
     let target = null;
     switch (report.type) {
       case "REVIEW":
-        target = await models.review.findByPk(report.target_id);
+        target = await models.review.findOne({
+          where: { id: report.target_id },
+          include: [
+            // 원본 작성자
+            { model: models.user, attributes: ["id", "name"] },
+            { model: models.facility, attributes: ["id", "name"] },
+          ],
+        });
         break;
       case "COMMUNITY":
-        target = await models.community.findByPk(report.target_id);
+        target = await models.community.findOne({
+          where: { id: report.target_id },
+          include: [{ model: models.user, attributes: ["id", "name"] }], // 작성자
+        });
         break;
       case "COMMENT":
-        target = await models.comment.findByPk(report.target_id);
+        target = await models.comment.findOne({
+          where: { id: report.target_id },
+          include: [{ model: models.user, attributes: ["id", "name"] }], // 작성자
+        });
         break;
     }
 
