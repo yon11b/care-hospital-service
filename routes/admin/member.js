@@ -324,6 +324,7 @@ async function getStaffsList(req, res) {
 
     // 직원 배열 가공
     const staffList = staffs.map((s) => ({
+      id: s.id,
       facility_name: s.facility?.name || "", // 소속 기관
       role: s.role,
       name: s.name,
@@ -470,13 +471,13 @@ async function getFacilityStaffs(req, res) {
 // 승인 상태 변경
 async function updateStaffStatus(req, res) {
   try {
-    const { userId, name, password, email, role, approval_status } = req.body;
+    const { id, name, password, email, role, approval_status } = req.body;
 
-    if (userId) {
+    if (id) {
       // 기존 사용자 업데이트
       const existingUser = await models.staff.findOne({
         where: {
-          id: userId,
+          id,
         },
       });
       if (!existingUser) {
@@ -492,7 +493,7 @@ async function updateStaffStatus(req, res) {
       if (approval_status) updateData.approval_status = approval_status;
 
       await models.staff.update(updateData, {
-        where: { id: userId },
+        where: { id },
       });
       return res.status(200).json({ result: true });
     }
@@ -501,7 +502,40 @@ async function updateStaffStatus(req, res) {
     return res.status(400).json({ result: false, msg: err.toString() });
   }
 }
+// 승인 상태 변경
+async function updateUserStatus(req, res) {
+  try {
+    const { id, name, password, email, role, status } = req.body;
 
+    if (id) {
+      // 기존 사용자 업데이트
+      const existingUser = await models.user.findOne({
+        where: {
+          id,
+        },
+      });
+      if (!existingUser) {
+        return res
+          .status(404)
+          .json({ result: false, msg: "사용자를 찾을 수 없습니다." });
+      }
+      const updateData = {};
+      if (name) updateData.name = name;
+      if (password) updateData.password = password; // 이미 해시 처리한 경우
+      if (email) updateData.email = email;
+      if (role) updateData.role = role;
+      if (status) updateData.status = status;
+
+      await models.user.update(updateData, {
+        where: { id },
+      });
+      return res.status(200).json({ result: true });
+    }
+  } catch (err) {
+    console.error(err);
+    return res.status(400).json({ result: false, msg: err.toString() });
+  }
+}
 module.exports = {
   addUserToBlacklist,
   removeUserFromBlacklist,
@@ -513,4 +547,5 @@ module.exports = {
   getFacilitiesList,
   getFacilityStaffs,
   updateStaffStatus,
+  updateUserStatus,
 };
