@@ -146,18 +146,34 @@ async function upsertNotice(req, res) {
 
     let updatedNotice;
 
-    if (req.body.notyid) {
+    // 추가 -> 이미지 삭제 기능
+    // 이미지 처리: 삭제 체크 / 새 파일 / 기존 유지
+    let picture;
+    if (req.file) {
+      // 새 파일이 있으면 무조건 새 파일 URL
+      picture = req.file.location; 
+    } else if (req.body.removeImage === 'true') {
+      // 새 파일 없고 삭제 체크 되어 있으면 null
+      picture = null;
+    } else {
+      // 아무 것도 안 하면 기존 이미지 유지
+      picture = undefined;
+    }
+ 
+    console.log(req.file)
+
+    const noticeId = req.body.notyid ? parseInt(req.body.notyid, 10) : undefined;
+    const { notyid, removeImage, ...rest } = req.body;
+
+    if (noticeId) {
       // UPDATE
       const [affectedCount, rows] = await models.notice.update(
         {
-          facility_id: req.params.facilityid,
-          ...req.body,
-          picture: req.file
-            ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}`
-            : undefined,
+          ...rest,
+          picture,
         },
         {
-          where: { id: req.body.notyid },
+          where: { id: noticeId },
           returning: true, // Postgres에서만 지원
         }
       );
@@ -170,12 +186,11 @@ async function upsertNotice(req, res) {
       }
       updatedNotice = rows[0];
     } else {
+      // CREATE
       updatedNotice = await models.notice.create({
         facility_id: req.params.facilityid,
-        ...req.body,
-        picture: req.file
-          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}`
-          : undefined,
+        ...rest,
+        picture,
       });
     }
     return res.status(200).send({
