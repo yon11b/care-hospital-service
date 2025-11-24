@@ -36,6 +36,8 @@ const {
   approveOrRejectAd,
 } = require("./advertisement");
 
+const { getFacilities, getFacility } = require("./facility");
+
 const { getAnomalies } = require("./anomaly");
 // 1. 신고 관련 기능
 // admin 로그인 세션 확인 -> 미들웨어(requireRole)로 체크
@@ -96,5 +98,10 @@ router.patch("/advertisements/:adId", requireRole("admin"), approveOrRejectAd);
 
 // 6. 이상탐지
 router.get("/anomaly", requireRole("admin"), getAnomalies);
+
+// 7. 시설
+
+router.get("/facilities", requireRole("admin"), getFacilities);
+router.get("/facilities/:Id", requireRole("admin"), getFacility);
 
 module.exports = router;
