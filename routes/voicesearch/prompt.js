@@ -48,7 +48,7 @@ JSON 구조는 다음과 같다:
     "sido": string | null,
     "sggu": string | null,
     "dong": string | null,
-    "near_me": boolean,
+    "near_me": boolean | false,
     "coords": {
       "name": string | null,
       "address": string | null,
@@ -56,18 +56,6 @@ JSON 구조는 다음과 같다:
       "longitude": number | null
     }
   },
-  "conditions": { 
-    "max_patients": number | null,
-    "min_patients": number | null,
-    "newly_established": boolean    
-  },
-  "staff_conditions": {
-    "total_doctor": { "required": boolean|false , "min": number | null, "max": number | null, "exact": number | null },
-    "medc_doctor": { "required": boolean|false , "min": number | null, "max": number | null, "exact": number | null },
-    "dent_doctor": { "required": boolean|false , "min": number | null, "max": number | null, "exact": number | null },
-    "hb_doctor": { "required": boolean|false , "min": number | null, "max": number | null, "exact": number | null },
-    "specialist_required": boolean|false 
-  }
 }
 `,
       },
@@ -78,19 +66,18 @@ JSON 구조는 다음과 같다:
 
   const filter = JSON.parse(res.choices[0].message.content);
 
-  // “내 근처 / 주변” 문장일 때 처리
-  const isNearMeSearch = /근처|주변/.test(text);
-  if (isNearMeSearch) {
-    filter.location.near_me = true;
-    filter.location.sido = null;
-    filter.location.sggu = null;
-    filter.location.dong = null;
+  // // “내 근처 / 주변” 문장일 때 처리
+  // const isNearMeSearch = /근처|주변/.test(text);
+  // if (isNearMeSearch) {
+  //   filter.location.near_me = true;
+  //   filter.location.sido = null;
+  //   filter.location.sggu = null;
+  //   filter.location.dong = null;
 
-    const searchQueryMatch = text.match(/([가-힣0-9]+)(?=\s*근처|\s*주변)/);
-    const searchQuery = searchQueryMatch ? searchQueryMatch[1] : text;
-
-    filter.location.coords = await searchPlace(searchQuery);
-  }
+  //   const searchQueryMatch = text.match(/([가-힣0-9]+)(?=\s*근처|\s*주변)/);
+  const searchQuery = filter.location.coords.name || null;
+  if (searchQuery) filter.location.coords = await searchPlace(searchQuery);
+  // }
 
   return filter;
 }

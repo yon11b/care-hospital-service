@@ -155,7 +155,9 @@ async function upsertUser(req, res) {
     }
 
     // 기존 사용자 조회
-    const existingUser = await models.staff.findOne({ where: { id: currentUser.user.id } });
+    const existingUser = await models.staff.findOne({
+      where: { id: currentUser.user.id },
+    });
 
     if (!existingUser) {
       // 신규 사용자 처리
@@ -259,7 +261,7 @@ async function login(req, res) {
       });
       req.session.user = user;
       return res.status(200).send({
-        result: true, 
+        result: true,
         Message: "staff login and session save successfully",
         ResultCode: "ERR_OK",
         Response: user,
@@ -280,7 +282,7 @@ async function login(req, res) {
         });
       }
       return res.status(401).send({
-        result: false, 
+        result: false,
         Message: "Invalid email or password.",
         ResultCode: "ERR_INVALID_CREDENTIALS",
       });
@@ -288,7 +290,7 @@ async function login(req, res) {
   } catch (err) {
     console.log(err);
     return res.status(500).send({
-      result: false, 
+      result: false,
       Message: error.message || "Internal server error",
       ResultCode: "ERR_INTERNAL_SERVER",
       error,
