@@ -106,61 +106,61 @@ router.patch("/reservations/:reservationId", authMiddleware, cancelReservation);
 // 기관의 예약 관련 기능
 router.get(
   "/:facilityId/dashboard/reservations",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   getFacilityReservations
 ); // 기관의 예약 조회
 router.get(
   "/:facilityId/dashboard/reservations/:reservationId",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   getFacilityReservationDetail
 ); // 기관의 예약 상세 조회
 router.patch(
   "/:facilityId/dashboard/reservations/:reservationId/:status",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   updateFacilityReservationStatus
 ); // 기관의 예약 승인/거절
 
 // 기관의 광고 신청 관련 기능
 router.get(
   "/:facilityId/dashboard/advertisements/:adId",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   getAdDetail
 ); // 기관의 광고 상세 조회
 router.get(
   "/:facilityId/dashboard/advertisements",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   getAds
 ); // 기관의 광고 목록 조회
 router.post(
   "/:facilityId/dashboard/advertisements",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   createAd
 ); // 기관의 광고 신청
 router.patch(
   "/:facilityId/dashboard/advertisements/:adId",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   updateAd
 ); // 기관의 광고 수정
 
 // 기관의 통계 기능
 router.get(
   "/:facilityId/overview/statistics",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   getFacilityStatistics
 ); // 대시보드 overview 페이지 통계
 router.get(
   "/:facilityId/overview/latest-reservations",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   getLatestReservations
 ); // 대시보드 overview 페이지 최신 예약 5개
 router.get(
   "/:facilityId/overview/latest-chats",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   getLatestChats
 ); // 대시보드 overview 페이지 최신 상담 5개
 router.get(
   "/:facilityId/overview/monthly-charts",
-  requireRole(["staff", "owner"]),
+  requireRole(["staff", "owner", "admin"]),
   getMonthlyCharts
 ); // 대시보드 overview 페이지 월별 집계 차트
 
