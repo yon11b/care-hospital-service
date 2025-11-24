@@ -1,6 +1,8 @@
 const models = require("../../models");
 const { Op } = require("sequelize");
 const sequelize = models.sequelize;
+const Sequelize = require("sequelize");
+const moment = require("moment"); // 날짜 처리 라이브러리
 
 // ========================================
 // 1. 통계
@@ -145,19 +147,19 @@ async function getReservationStatistics(req, res) {
     const facilityId = parseInt(req.params.facilityId, 10);
     const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD 형식
 
-    // if (isNaN(facilityId)) {
-    //   return res.status(400).json({
-    //     Message: "유효하지 않은 파라미터",
-    //     ResultCode: "ERR_INVALID_PARAMETER",
-    //   });
-    // }
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        Message: "유효하지 않은 파라미터",
+        ResultCode: "ERR_INVALID_PARAMETER",
+      });
+    }
 
-    // if (staff.facility_id !== facilityId) {
-    //   return res.status(403).json({
-    //     Message: "해당 기관의 직원이 아닙니다.",
-    //     ResultCode: "ERR_FORBIDDEN"
-    //   });
-    // }
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({
+        Message: "해당 기관의 직원이 아닙니다.",
+        ResultCode: "ERR_FORBIDDEN",
+      });
+    }
 
     // 1. 오늘 예약 수
     const todayCount = await models.reservation.count({
@@ -258,13 +260,12 @@ async function getChatStatistics(req, res) {
   }
 }
 
-// 1-4. 대시보드 overview
-// GET /facilities/{facilityId}/Overview
+// 1-4. 대시보드 통계 overview
+// GET /facilities/{facilityId}/overview/statistics
 // 오늘의 예약 수, 오늘의 상담 수, 환자 현황, 병상 현황,
-// 최신 예약 목록(5개), 최신 상담 목록(5개)
-async function getFacilityOverview(req, res) {
+async function getFacilityStatistics(req, res) {
   try {
-    const staff = req.session.user; // 이미 requireRole에서 체크됨
+    const staff = req.session.user;
     const facilityId = parseInt(req.params.facilityId, 10);
 
     if (isNaN(facilityId)) {
@@ -281,21 +282,14 @@ async function getFacilityOverview(req, res) {
       });
     }
 
-    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD, 오늘 날짜
-
+    const today = new Date().toISOString().split("T")[0];
     // Promise.all로 병렬 처리
-    const [
-      todayResrvations,
-      todayChats,
-      status,
-      latestReservations,
-      latestChats,
-    ] = await Promise.all([
+    const [todayReservations, todayChats, status] = await Promise.all([
       // 1. 오늘 예약 수
       models.reservation.count({
         where: {
           facility_id: facilityId,
-          reserved_date: today, // 오늘 예약만 카운트
+          reserved_date: today,
         },
       }),
 
@@ -303,41 +297,13 @@ async function getFacilityOverview(req, res) {
       models.chat_room.count({
         where: {
           facility_id: facilityId,
-          created_at: { [Op.gte]: today }, // 오늘 생성된 채팅
+          created_at: { [Op.gte]: today },
         },
       }),
 
-      // 3. 환자 수, 병상 수
+      // 3. 시설 상태 정보 - 환자 수, 병상 수
       models.facility_status.findOne({
         where: { facility_id: facilityId },
-      }),
-
-      // 4. 최신 예약 목록(5개)
-      models.reservation.findAll({
-        where: { facility_id: facilityId },
-        order: [["created_at", "DESC"]],
-        limit: 5,
-        attributes: [
-          "id",
-          "patient_name",
-          "reserved_date",
-          "reserved_time",
-          "status",
-        ],
-      }),
-
-      // 5. 최신 상담 목록(5개)
-      models.chat_room.findAll({
-        where: { facility_id: facilityId },
-        order: [["created_at", "DESC"]],
-        limit: 5,
-        attributes: ["room_id", "last_message", "created_at"],
-        include: [
-          {
-            model: models.user, // 'user' 모델을 포함
-            attributes: ["name"], // 'name' 속성만 조회
-          },
-        ],
       }),
     ]);
 
@@ -354,20 +320,23 @@ async function getFacilityOverview(req, res) {
     const remainingBeds = Math.max(userCapacity - totalPatients, 0);
     const occupancyRate =
       userCapacity > 0 ? ((usedBeds / userCapacity) * 100).toFixed(2) : 0;
+    const manPatients = status.man_patients_count || 0; // 남자 환자 수
+    const womanPatients = status.woman_patients_count || 0; // 여자 환자 수
 
+    // res.setHeader('Cache-Control', 'no-store'); // 응답에서 캐시 방지
     res.status(200).json({
       Message: "overview 통계 조회 성공",
       ResultCode: "SUCCESS",
       data: {
-        todayResrvations,
+        todayReservations,
         todayChats,
         totalPatients,
+        manPatients,
+        womanPatients,
         userCapacity,
         usedBeds,
         remainingBeds,
         occupancyRate: Number(occupancyRate),
-        latestReservations,
-        latestChats,
       },
     });
   } catch (error) {
@@ -380,10 +349,194 @@ async function getFacilityOverview(req, res) {
   }
 }
 
+// 1-5. 대시보드 overview - 최신 예약 정보
+// GET /facilities/{facilityId}/overview/latest-reservations
+// 최신 예약 목록(5개)
+async function getLatestReservations(req, res) {
+  try {
+    const staff = req.session.user;
+    const facilityId = parseInt(req.params.facilityId, 10);
+
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        Message: "유효하지 않은 파라미터",
+        ResultCode: "ERR_INVALID_PARAMETER",
+      });
+    }
+
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({
+        Message: "해당 기관의 직원이 아닙니다.",
+        ResultCode: "ERR_FORBIDDEN",
+      });
+    }
+
+    const latestReservations = await models.reservation.findAll({
+      where: { facility_id: facilityId },
+      order: [["created_at", "DESC"]],
+      limit: 5,
+      attributes: [
+        "id",
+        "patient_name",
+        "reserved_date",
+        "reserved_time",
+        "status",
+      ],
+    });
+
+    res.status(200).json({
+      Message: "최신 예약 목록 조회 성공",
+      ResultCode: "SUCCESS",
+      data: latestReservations,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      Message: "최신 예약 목록 조회 실패",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      error,
+    });
+  }
+}
+
+// 1-6. 대시보드 overview - 최신 상담 정보
+// GET /facilities/{facilityId}/overview/latest-chats
+// 최신 상담 목록(5개)
+async function getLatestChats(req, res) {
+  try {
+    const staff = req.session.user;
+    const facilityId = parseInt(req.params.facilityId, 10);
+
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        Message: "유효하지 않은 파라미터",
+        ResultCode: "ERR_INVALID_PARAMETER",
+      });
+    }
+
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({
+        Message: "해당 기관의 직원이 아닙니다.",
+        ResultCode: "ERR_FORBIDDEN",
+      });
+    }
+
+    const latestChats = await models.chat_room.findAll({
+      where: { facility_id: facilityId },
+      order: [["created_at", "DESC"]],
+      limit: 5,
+      attributes: ["room_id", "last_message", "created_at"],
+      include: [
+        {
+          model: models.user,
+          attributes: ["name"],
+        },
+      ],
+    });
+
+    res.status(200).json({
+      Message: "최신 상담 목록 조회 성공",
+      ResultCode: "SUCCESS",
+      data: latestChats,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      Message: "최신 상담 목록 조회 실패",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      error,
+    });
+  }
+}
+
+// 1-6. 대시보드 overview 차트
+// GET /facilities/{facilityId}/overview/monthly-charts
+// 예약, 상담 월별 개수
+async function getMonthlyCharts(req, res) {
+  try {
+    const staff = req.session.user;
+    const facilityId = parseInt(req.params.facilityId, 10);
+
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        Message: "유효하지 않은 파라미터",
+        ResultCode: "ERR_INVALID_PARAMETER",
+      });
+    }
+
+    if (staff.facility_id !== facilityId) {
+      return res.status(403).json({
+        Message: "해당 기관의 직원이 아닙니다.",
+        ResultCode: "ERR_FORBIDDEN",
+      });
+    }
+
+    // 1. 예약 월별 집계
+    const reservationData = await models.reservation.findAll({
+      attributes: [
+        [
+          Sequelize.fn("DATE_TRUNC", "month", Sequelize.col("reserved_date")),
+          "month",
+        ],
+        [Sequelize.fn("COUNT", Sequelize.col("id")), "count"],
+      ],
+      where: { facility_id: facilityId },
+      group: ["month"],
+      order: [["month", "ASC"]],
+      raw: true,
+    });
+
+    // 2. 상담 월별 집계
+    const consultationData = await models.chat_room.findAll({
+      attributes: [
+        [
+          Sequelize.fn("DATE_TRUNC", "month", Sequelize.col("updated_at")),
+          "month",
+        ],
+        [Sequelize.fn("COUNT", Sequelize.col("room_id")), "count"],
+      ],
+      where: { facility_id: facilityId },
+      group: ["month"],
+      order: [["month", "ASC"]],
+      raw: true,
+    });
+
+    // 3. 0 채우기 (최신 12개월 기준)
+    const months = Array.from({ length: 12 }, (_, i) =>
+      moment()
+        .subtract(11 - i, "months")
+        .startOf("month")
+        .format("YYYY-MM-DD")
+    );
+
+    const fillData = (data) => {
+      const map = {};
+      data.forEach((item) => {
+        map[moment(item.month).format("YYYY-MM-DD")] = parseInt(item.count, 10);
+      });
+      return months.map((m) => ({ month: m, count: map[m] || 0 }));
+    };
+
+    res.json({
+      Message: "월별 집계 조회 성공",
+      ResultCode: "SUCCESS",
+      reservations: fillData(reservationData),
+      consultations: fillData(consultationData),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "서버 오류 발생" });
+  }
+}
+
 module.exports = {
   getPatientStatistics,
   updatePatientStatistics,
   getReservationStatistics,
   getChatStatistics,
-  getFacilityOverview,
+
+  getFacilityStatistics,
+  getLatestReservations,
+  getLatestChats,
+  getMonthlyCharts,
 };

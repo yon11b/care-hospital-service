@@ -146,18 +146,34 @@ async function upsertNotice(req, res) {
 
     let updatedNotice;
 
-    if (req.body.notyid) {
+    // 추가 -> 이미지 삭제 기능
+    // 이미지 처리: 삭제 체크 / 새 파일 / 기존 유지
+    let picture;
+    if (req.file) {
+      // 새 파일이 있으면 무조건 새 파일 URL
+      picture = req.file.location; 
+    } else if (req.body.removeImage === 'true') {
+      // 새 파일 없고 삭제 체크 되어 있으면 null
+      picture = null;
+    } else {
+      // 아무 것도 안 하면 기존 이미지 유지
+      picture = undefined;
+    }
+ 
+    console.log(req.file)
+
+    const noticeId = req.body.notyid ? parseInt(req.body.notyid, 10) : undefined;
+    const { notyid, removeImage, ...rest } = req.body;
+
+    if (noticeId) {
       // UPDATE
       const [affectedCount, rows] = await models.notice.update(
         {
-          facility_id: req.params.facilityid,
-          ...req.body,
-          picture: req.file
-            ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}`
-            : undefined,
+          ...rest,
+          picture,
         },
         {
-          where: { id: req.body.notyid },
+          where: { id: noticeId },
           returning: true, // Postgres에서만 지원
         }
       );
@@ -170,12 +186,11 @@ async function upsertNotice(req, res) {
       }
       updatedNotice = rows[0];
     } else {
+      // CREATE
       updatedNotice = await models.notice.create({
         facility_id: req.params.facilityid,
-        ...req.body,
-        picture: req.file
-          ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.file.key}`
-          : undefined,
+        ...rest,
+        picture,
       });
     }
     return res.status(200).send({
@@ -363,6 +378,10 @@ async function getNotice(req, res) {
     });
   }
 }
+
+// 기관 대시보드 공지사항 전체 조회 
+// -> 추가 수정 사항 : 특정 기관의 공지사항 조회로 변경
+// -> session의 facility_id 조건에 추가
 async function getNotices(req, res) {
   try {
     const page = parseInt(req.query.page) || 1; // 기본 1페이지
@@ -370,19 +389,35 @@ async function getNotices(req, res) {
     const offset = (page - 1) * limit;
     const { keyword } = req.query;
 
+    // 해당 기관의 유저만...
+    if (
+      !req.session.user ||
+      req.session.user.facility_id != req.params.facilityid
+    ) {
+      return res.status(401).send({
+        Message: "Unauthorized",
+        ResultCode: "ERR_UNAUTHORIZED",
+      });
+    } 
+
+    // 조건 필터
+    const whereCondition = {
+      facility_id: req.session.user.facility_id, 
+      ...(keyword && {
+        [Op.or]: [
+          { title: { [Op.iLike]: `%${keyword}%` } },
+          { content: { [Op.iLike]: `%${keyword}%` } },
+        ],
+      }),
+    };
+
     const resp = await models.notice.findAll({
-      where: keyword
-        ? {
-            [Op.or]: [
-              { title: { [Op.iLike]: `%${keyword}%` } },
-              { content: { [Op.iLike]: `%${keyword}%` } },
-            ],
-          }
-        : {},
+      where: whereCondition,
       order: [["created_at", "DESC"]],
       limit,
       offset,
     });
+
     res.json({
       Message: "Notifications select successfully.",
       ResultCode: "ERR_OK",

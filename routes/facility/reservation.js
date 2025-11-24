@@ -388,16 +388,13 @@ async function getFacilityReservations(req, res) {
   try {
     const staff = req.session.user; // 세션 기반 로그인
     const facilityId = parseInt(req.params.facilityId, 10);
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 10;
-    const offset = (page - 1) * limit;
 
-    // if (isNaN(facilityId)) {
-    //   return res.status(400).json({
-    //     Message: "Invalid facilityId parameter",
-    //     ResultCode: "ERR_INVALID_PARAM",
-    //   });
-    // }
+    if (isNaN(facilityId)) {
+      return res.status(400).json({
+        Message: "Invalid facilityId parameter",
+        ResultCode: "ERR_INVALID_PARAM",
+      });
+    }
 
     // 직원 소속 기관 확인
     // if (staff.facility_id !== facilityId) {
@@ -406,8 +403,7 @@ async function getFacilityReservations(req, res) {
     //     ResultCode: "ERR_FORBIDDEN",
     //   });
     // }
-
-    const { status, keyword, startDate, endDate } = req.query;
+    const { status, startDate, endDate } = req.query;
 
     // 기본 필터: facility_id
     let where = { facility_id: facilityId };
@@ -433,13 +429,6 @@ async function getFacilityReservations(req, res) {
         required: false,
       },
     ];
-
-    // keyword 그대로 비교 (정확 일치)
-    // 환자 이름 또는 전화번호 정확 일치
-    if (keyword) {
-      where[Op.or] = [{ patient_name: keyword }, { patient_phone: keyword }];
-    }
-
     // 날짜 필터링
     if (startDate || endDate) {
       where.reserved_date = {};
@@ -447,24 +436,29 @@ async function getFacilityReservations(req, res) {
       if (endDate) where.reserved_date[Op.lte] = endDate; // endDate 이전
     }
 
-    // 예약 조회
-    const { count, rows } = await models.reservation.findAndCountAll({
+    // 예약 조회 (전체 데이터, limit/offset 제거)
+    const rows = await models.reservation.findAll({
       where,
       include,
       order: [["created_at", "DESC"]],
-      limit,
-      offset,
     });
 
+    // ETag 생성 (간단히 데이터 JSON hash)
+    const hash = require("crypto")
+      .createHash("md5")
+      .update(JSON.stringify(rows))
+      .digest("hex");
+
+    if (req.headers["if-none-match"] === hash) {
+      // 클라이언트 데이터 최신이면 304 반환
+      return res.status(304).end();
+    }
+
+    res.setHeader("ETag", hash);
+    res.setHeader("Cache-Control", "private, max-age=60"); // 60초 캐시 허용
     return res.status(200).json({
       Message: "기관 예약 목록 조회 성공",
       ResultCode: "SUCCESS",
-      Pagination: {
-        totalItems: count,
-        currentPage: page,
-        totalPages: Math.ceil(count / limit),
-        pageSize: limit,
-      },
       data: rows,
     });
   } catch (err) {

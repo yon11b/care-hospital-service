@@ -65,7 +65,11 @@ const {
   updatePatientStatistics,
   getReservationStatistics,
   getChatStatistics,
-  getFacilityOverview,
+
+  getFacilityStatistics,
+  getLatestReservations,
+  getLatestChats,
+  getMonthlyCharts,
 } = require("./statistics");
 
 router.get("/:id", getFacility);
@@ -102,66 +106,82 @@ router.patch("/reservations/:reservationId", authMiddleware, cancelReservation);
 // 기관의 예약 관련 기능
 router.get(
   "/:facilityId/dashboard/reservations",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   getFacilityReservations
 ); // 기관의 예약 조회
 router.get(
   "/:facilityId/dashboard/reservations/:reservationId",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   getFacilityReservationDetail
 ); // 기관의 예약 상세 조회
 router.patch(
   "/:facilityId/dashboard/reservations/:reservationId/:status",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   updateFacilityReservationStatus
 ); // 기관의 예약 승인/거절
 
 // 기관의 광고 신청 관련 기능
 router.get(
   "/:facilityId/dashboard/advertisements/:adId",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   getAdDetail
 ); // 기관의 광고 상세 조회
 router.get(
   "/:facilityId/dashboard/advertisements",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   getAds
 ); // 기관의 광고 목록 조회
 router.post(
   "/:facilityId/dashboard/advertisements",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   createAd
 ); // 기관의 광고 신청
 router.patch(
   "/:facilityId/dashboard/advertisements/:adId",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   updateAd
 ); // 기관의 광고 수정
 
 // 기관의 통계 기능
 router.get(
-  "/:facilityId/dashboard/overview",
-  requireRole(["staff", "owner", "admin"]),
-  getFacilityOverview
-); // 대시보드
+  "/:facilityId/overview/statistics",
+  requireRole(["staff", "owner"]),
+  getFacilityStatistics
+); // 대시보드 overview 페이지 통계
+router.get(
+  "/:facilityId/overview/latest-reservations",
+  requireRole(["staff", "owner"]),
+  getLatestReservations
+); // 대시보드 overview 페이지 최신 예약 5개
+router.get(
+  "/:facilityId/overview/latest-chats",
+  requireRole(["staff", "owner"]),
+  getLatestChats
+); // 대시보드 overview 페이지 최신 상담 5개
+router.get(
+  "/:facilityId/overview/monthly-charts",
+  requireRole(["staff", "owner"]),
+  getMonthlyCharts
+); // 대시보드 overview 페이지 월별 집계 차트
+
 router.get(
   "/:facilityId/dashboard/statistics/patients",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   getPatientStatistics
 ); // 환자 통계
 router.patch(
   "/:facilityId/dashboard/statistics/patients",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   updatePatientStatistics
 ); // 환자 통계 수정하기
 router.get(
   "/:facilityId/dashboard/statistics/reservations",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   getReservationStatistics
 ); // 예약 통계
 router.get(
   "/:facilityId/dashboard/statistics/chats",
-  requireRole(["staff", "owner", "admin"]),
+  requireRole(["staff", "owner"]),
   getChatStatistics
 ); // 상담 통계
 

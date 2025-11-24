@@ -6,6 +6,7 @@ const db = require("../../models");
 const config = require("../../config/config.json")[
   process.env.NODE_ENV || "development"
 ];
+const solapi = require('solapi');
 
 const { authMiddleware } = require("../../middleware/authMiddleware.js");
 
@@ -19,6 +20,11 @@ const {
 } = require("./user");
 const { getfavorites, toggleFavorite } = require("./favorite");
 const { makeSnsAuthUrl, handleCallback, refreshToken } = require("./sns");
+
+const { 
+  sendMessage,
+  verifyAndLogin
+} = require("./phone")
 
 router.get("/session", getSession);
 router.post("/register/staff", upsertUser);
@@ -47,5 +53,10 @@ router.post("/sns/login/refresh-token", refreshToken); // Refresh token 재발�
 
 // 사용자가 입력한 주소로 위도, 경도 리턴
 router.get("/geolocation", geolocation);
+
+// 전화번호 문자 발송
+router.post("/phone/send", sendMessage) // 코드 문자 전송
+router.post("/phone/verify", verifyAndLogin) // 코드 인증 및 로그인/회원가입
+
 
 module.exports = router;
