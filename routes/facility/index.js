@@ -29,7 +29,8 @@ const upload = multer({
     key: (req, file, callback) => {
       //console.log(req.body.today_meal_url);
       const ext = path.extname(file.originalname);
-      callback(null, `image/meal-${Date.now()}_${ext}`);
+      const uniqueKey = `image/meal-${Date.now()}-${Math.floor(Math.random()*10000)}${ext}`;
+      callback(null, uniqueKey);
     },
   }),
 });
