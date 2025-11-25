@@ -337,13 +337,11 @@ async function getStaffsList(req, res) {
     res.json({
       ResultCode: "SUCCESS",
       Message: "기관 회원 목록 조회 성공",
-      data: staffList,
-      pagination: {
-        page,
-        limit,
-        totalPages: Math.ceil(totalCount / limit),
-        totalCount,
-      },
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
+      totalCount,
+      Result: staffList,
     });
   } catch (err) {
     console.error("admin - getStaffsList err:", err.message);

@@ -1,15 +1,10 @@
+const models = require("../../models");
+const { Op, literal } = require("sequelize");
 async function getFacilities(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
-
-    const latitude = req.query.latitude
-      ? parseFloat(req.query.latitude)
-      : 37.5664;
-    const longitude = req.query.longitude
-      ? parseFloat(req.query.longitude)
-      : 126.9779;
     const keyword = req.query.keyword || "";
     const kind = req.query.kind
       ? req.query.kind.split(",").map((k) => k.trim())
@@ -19,8 +14,6 @@ async function getFacilities(req, res) {
     const totalCount = await models.facility.count({
       where: {
         ...(keyword && { name: { [Op.iLike]: `%${keyword}%` } }),
-        ...(longitude && { longitude: { [Op.ne]: null } }),
-        ...(latitude && { latitude: { [Op.ne]: null } }),
         ...(kind.length > 0 && { kind: { [Op.in]: kind } }),
       },
       distinct: true,
@@ -30,30 +23,34 @@ async function getFacilities(req, res) {
     const resp = await models.facility.findAll({
       where: {
         ...(keyword && { name: { [Op.iLike]: `%${keyword}%` } }),
-
-        ...(longitude && { longitude: { [Op.ne]: null } }),
-        ...(latitude && { latitude: { [Op.ne]: null } }),
         ...(kind.length > 0 && { kind: { [Op.in]: kind } }),
-      },
-      attributes: {
-        include: [
-          [
-            literal(
-              `ST_DistanceSphere(
-              ST_MakePoint(longitude::double precision, latitude::double precision),
-              ST_MakePoint(${longitude}, ${latitude})
-              )`
-            ),
-            "distance",
-          ],
-        ],
       },
       include: [
         { model: models.facility_status },
         { model: models.advertisement },
-        { model: models.staffs },
+        {
+          model: models.staff,
+          required: false,
+        },
       ],
-      order: [[literal("distance"), "ASC"]],
+      attributes: {
+        include: [
+          [
+            models.sequelize.literal(`(
+        SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END
+        FROM staffs AS s
+        WHERE s.facility_id = facility.id
+          AND s.role = 'owner'
+      )`),
+            "has_owner",
+          ],
+        ],
+      },
+      order: [
+        [models.sequelize.literal("has_owner"), "DESC"], // owner 있는게 위로
+        ["created_at", "DESC"],
+      ],
+
       limit,
       offset,
       distinct: true,
@@ -92,7 +89,7 @@ async function getFacility(req, res) {
       include: [
         { model: models.facility_status },
         { model: models.advertisement },
-        { model: models.staffs },
+        { model: models.staff },
       ],
     });
     if (!resp) {

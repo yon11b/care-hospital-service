@@ -27,10 +27,15 @@ const {
   getMonthlyUsers,
   getActiveUsers,
   getUsers,
-  getReviews,
-  getReview,
   getDatas,
 } = require("./statistics");
+const { getReviews, getReview, updateReview } = require("./review");
+
+const {
+  getCommunities,
+  getCommunity,
+  updateCommunity,
+} = require("./community");
 const {
   getFacilityAds,
   getFacilityAdsDetail,
@@ -92,8 +97,11 @@ router.get(
   requireRole(["admin"]),
   getActiveUsers
 );
-router.get("/statistics/reviews", requireRole(["admin"]), getReviews);
-router.get("/statistics/reviews/:reviewId", requireRole(["admin"]), getReview);
+// 4. 리뷰
+router.get("/reviews", requireRole(["admin"]), getReviews);
+router.get("/reviews/:id", requireRole(["admin"]), getReview);
+router.patch("/reviews/:id", requireRole(["admin"]), updateReview);
+
 router.get("/statistics/users", requireRole(["admin"]), getUsers);
 router.get("/statistics/datas", requireRole(["admin"]), getDatas);
 
@@ -114,8 +122,12 @@ router.patch(
 router.get("/anomaly", requireRole(["admin"]), getAnomalies);
 
 // 7. 시설
-
 router.get("/facilities", requireRole(["admin"]), getFacilities);
-router.get("/facilities/:Id", requireRole(["admin"]), getFacility);
+router.get("/facilities/:id", requireRole(["admin"]), getFacility);
+
+// 8. 커뮤니티
+router.get("/communities", requireRole(["admin"]), getCommunities);
+router.get("/communities/:id", requireRole(["admin"]), getCommunity);
+router.patch("/communities/:id", requireRole(["admin"]), updateCommunity);
 
 module.exports = router;
