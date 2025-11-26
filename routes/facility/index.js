@@ -44,6 +44,7 @@ const {
   deleteNotice,
   getNotice,
   getNotices,
+  findFacilities,
 } = require("./facility");
 const {
   createReservation,
@@ -186,4 +187,8 @@ router.get(
   getChatStatistics
 ); // 상담 통계
 
+router.get(
+  "/dashboard/find",
+  findFacilities
+)
 module.exports = router;

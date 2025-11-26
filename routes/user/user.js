@@ -215,6 +215,19 @@ async function createUser(req, res) {
   try {
     const { name, password, email, role, facility_id, facility_number, ykiho } =
       req.body;
+
+    // 0. 이메일 중복 체크
+    const existingUser = await models.staff.findOne({
+      where: { email },
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        Message: "이미 존재하는 이메일입니다.",
+        ResultCode: "ERR_EMAIL_EXISTS",
+      });
+    }
+
     let staff;
     if (role == "owner") {
       // 1. 사업자번호 / 요양기호 검증

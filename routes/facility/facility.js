@@ -436,6 +436,34 @@ async function getNotices(req, res) {
   }
 }
 
+// 기관 회원가입 시 병원 찾기 조회
+// GET facilities/dashboard/find?search=홍
+async function findFacilities(req, res) {
+  try {
+    const { search } = req.query;
+
+    const where = search
+      ? { name: { [models.Sequelize.Op.like]: `%${search}%` } }
+      : {};
+
+    const facilities = await models.facility.findAll({
+      where,
+      attributes: ["id", "name", "address"], // 필요하면 주소도 포함
+      limit: 50,
+    });
+
+    res.json(facilities);
+  } catch (err) {
+    //bad request
+    console.log(err);
+    res.status(400).send({
+      result: false,
+      msg: err.toString(),
+    });
+  }
+}
+
+
 module.exports = {
   getFacilities,
   getFacility,
@@ -446,4 +474,5 @@ module.exports = {
   getNotices,
   getNotice,
   getMeals,
+  findFacilities,
 };
