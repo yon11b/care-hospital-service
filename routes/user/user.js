@@ -192,7 +192,7 @@ async function checkStaff(req, res) {
     }
 
     // 로그인된 사용자에 대해 facility_token 업데이트
-    const staff = await models.staff.update(
+    await models.staff.update(
       { facility_token, approval_status: "approved" },
       { where: { id: req.session.user.id } }
     );
