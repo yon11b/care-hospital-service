@@ -16,9 +16,10 @@ const config = require("./config/config.json")[
 ];
 const viewPath = config.path;
 var app = express();
+const corsOrigins = process.env.CORS_ORIGIN?.split(",") || [];
+
 const corsOptions = {
-  // origin: true,
-  origin: ["http://localhost:5173", "http://43.203.209.92"],
+  origin: corsOrigins,
   credentials: true,
 };
 app.use(cors(corsOptions));
@@ -65,9 +66,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      httpOnly: true,
-      secure: false,
       maxAge: 3 * 60 * 60 * 1000,
+      sameSite: 'lax',
+      secure: false
     },
   })
 );
@@ -83,9 +84,9 @@ if (process.env.proxy == "true") {
   app.use("/", proxy("localhost:8001"));
 }
 //DB Sync
-// const sequelize = require("sequelize");
-// const models = require("./models");
-// models.sequelize.sync();
+const sequelize = require("sequelize");
+const models = require("./models");
+models.sequelize.sync();
 
 //error handling
 
