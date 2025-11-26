@@ -151,18 +151,20 @@ async function upsertNotice(req, res) {
     let picture;
     if (req.file) {
       // 새 파일이 있으면 무조건 새 파일 URL
-      picture = req.file.location; 
-    } else if (req.body.removeImage === 'true') {
+      picture = req.file.location;
+    } else if (req.body.removeImage === "true") {
       // 새 파일 없고 삭제 체크 되어 있으면 null
       picture = null;
     } else {
       // 아무 것도 안 하면 기존 이미지 유지
       picture = undefined;
     }
- 
-    console.log(req.file)
 
-    const noticeId = req.body.notyid ? parseInt(req.body.notyid, 10) : undefined;
+    console.log(req.file);
+
+    const noticeId = req.body.notyid
+      ? parseInt(req.body.notyid, 10)
+      : undefined;
     const { notyid, removeImage, ...rest } = req.body;
 
     if (noticeId) {
@@ -379,7 +381,7 @@ async function getNotice(req, res) {
   }
 }
 
-// 기관 대시보드 공지사항 전체 조회 
+// 기관 대시보드 공지사항 전체 조회
 // -> 추가 수정 사항 : 특정 기관의 공지사항 조회로 변경
 // -> session의 facility_id 조건에 추가
 async function getNotices(req, res) {
@@ -398,11 +400,11 @@ async function getNotices(req, res) {
         Message: "Unauthorized",
         ResultCode: "ERR_UNAUTHORIZED",
       });
-    } 
+    }
 
     // 조건 필터
     const whereCondition = {
-      facility_id: req.session.user.facility_id, 
+      facility_id: req.session.user.facility_id,
       ...(keyword && {
         [Op.or]: [
           { title: { [Op.iLike]: `%${keyword}%` } },

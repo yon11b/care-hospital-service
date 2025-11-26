@@ -6,7 +6,7 @@ const db = require("../../models");
 const config = require("../../config/config.json")[
   process.env.NODE_ENV || "development"
 ];
-const solapi = require('solapi');
+const solapi = require("solapi");
 
 const { authMiddleware } = require("../../middleware/authMiddleware.js");
 
@@ -14,24 +14,24 @@ const {
   getSession,
   upsertUser,
   approveFacility,
+  checkFacility,
   login,
   logout,
   geolocation,
+  checkStaff,
 } = require("./user");
 const { getfavorites, toggleFavorite } = require("./favorite");
 const { makeSnsAuthUrl, handleCallback, refreshToken } = require("./sns");
 
-const { 
-  sendMessage,
-  verifyAndLogin
-} = require("./phone")
+const { sendMessage, verifyAndLogin } = require("./phone");
 
 router.get("/session", getSession);
 router.post("/register/staff", upsertUser);
-router.post("/approveFacility", approveFacility);
+router.post("/approveFacility", approveFacility); // 관리자 승인. 플랫폼 관리자 기능임.
 router.post("/login", login);
 router.post("/logout", logout);
-//router.post('/checkFacility', checkFacility);
+router.post("/checkFacility", checkFacility); // 사업자등록번호, 요양기호 검증
+router.post("/checkStaff", checkStaff); // 직원의 토큰 검증
 
 router.get("/:userId/favorites", authMiddleware, getfavorites);
 router.post("/:userId/favorites/:facilityId", authMiddleware, toggleFavorite);
@@ -55,8 +55,7 @@ router.post("/sns/login/refresh-token", refreshToken); // Refresh token 재발�
 router.get("/geolocation", geolocation);
 
 // 전화번호 문자 발송
-router.post("/phone/send", sendMessage) // 코드 문자 전송
-router.post("/phone/verify", verifyAndLogin) // 코드 인증 및 로그인/회원가입
-
+router.post("/phone/send", sendMessage); // 코드 문자 전송
+router.post("/phone/verify", verifyAndLogin); // 코드 인증 및 로그인/회원가입
 
 module.exports = router;

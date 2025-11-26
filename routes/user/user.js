@@ -1,9 +1,9 @@
-const models = require("../../models");
-const session = require("express-session");
 const sha256 = require("sha256");
 const axios = require("axios");
 const crypto = require("crypto");
+const models = require("../../models");
 require("dotenv").config();
+
 function generateAdminToken(length = 32) {
   return crypto.randomBytes(length).toString("hex");
 }
@@ -51,44 +51,73 @@ async function geolocation(req, res) {
     });
   }
 }
-
-async function checkFacility(bizNumber, email) {
+async function checkFacility(req, res) {
   try {
-    const serviceKey = process.env.OPEN_API;
-    const url = `https://api.odcloud.kr/api/nts-businessman/v1/status?serviceKey=${serviceKey}&returnType=JSON`;
-    const resp = await axios.post(
-      url,
-      { b_no: [bizNumber] },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const { bizNumber, ykiho } = req.body;
+    const user = req.session.user;
 
-    if (resp.data && resp.data.data && resp.data.data.length > 0) {
-      const result = resp.data.data[0];
-      if (result.b_stt === "계속사업자") {
-        const token = generateAdminToken();
-        await models.staff.update(
-          { approval_status: "verified", facility_token: token },
-          { where: { email } }
-        );
-        return { valid: true, info: result };
-      } else {
-        await models.staff.update(
-          { approval_status: "rejected" },
-          { where: { email } }
-        );
-        return { valid: false, info: result };
+    if (!user) {
+      return res
+        .status(401)
+        .json({ Status: false, msg: "로그인이 필요합니다." });
+    }
+
+    const id = user.id;
+    const serviceKey = process.env.OPEN_API;
+
+    // 1. 사업자번호 검증
+    let bizValid = false;
+    try {
+      const bizResp = await axios.post(
+        `https://api.odcloud.kr/api/nts-businessman/v1/status?serviceKey=${serviceKey}&returnType=JSON`,
+        { b_no: [bizNumber] },
+        { headers: { "Content-Type": "application/json" }, timeout: 3000 }
+      );
+
+      if (bizResp.data?.data?.length > 0) {
+        const result = bizResp.data.data[0];
+        if (result.b_stt === "계속사업자") bizValid = true;
+      }
+    } catch (err) {
+      console.error("사업자번호 조회 실패:", err.message);
+    }
+
+    // 2. 요양기호 검증 (status 200 여부만 확인)
+    let ykihoValid = false;
+    if (ykiho) {
+      const ykihoUrl = `https://apis.data.go.kr/B551182/hospDiagInfoService1/getClinicTop5List1?serviceKey=${serviceKey}&numOfRows=1&pageNo=1&ykiho=${encodeURIComponent(ykiho)}`;
+      try {
+        const ykihoResp = await axios.get(ykihoUrl, { timeout: 3000 });
+        if (ykihoResp.status === 200) ykihoValid = true;
+      } catch (err) {
+        console.error("요양기호 조회 실패:", err.message);
       }
     }
-    return { valid: false, info: null };
+
+    // 3. staff 업데이트
+    let staff;
+    if (bizValid || ykihoValid) {
+      const token = generateAdminToken();
+      await models.staff.update(
+        { approval_status: "verified", facility_token: token },
+        { where: { id } }
+      );
+      staff = await models.staff.findOne({ where: { id } });
+      return res.status(200).json({ Status: true, Result: staff });
+    } else {
+      await models.staff.update(
+        { approval_status: "rejected" },
+        { where: { id } }
+      );
+      staff = await models.staff.findOne({ where: { id } });
+      return res.status(200).json({ Status: false, Result: staff });
+    }
   } catch (err) {
-    console.error("사업자번호 조회 실패:", err.response?.data || err.message);
-    return { valid: false, error: err.response?.data || err.message };
+    console.error("검증 과정 실패:", err.message);
+    return res.status(500).json({ Status: false, error: err.message });
   }
 }
+
 // admin 승인 API
 async function approveFacility(req, res) {
   try {
@@ -133,6 +162,48 @@ async function approveFacility(req, res) {
     });
   }
 }
+async function checkStaff(req, res) {
+  const { facility_token } = req.body;
+
+  try {
+    if (!req.session.user) {
+      return res.status(401).json({
+        Message: "Unauthorized - 로그인 필요",
+        ResultCode: "ERR_UNAUTHORIZED",
+      });
+    }
+
+    // 직원 토큰 검증
+    const tokenValid = await models.staff.findOne({
+      where: { facility_token },
+    });
+
+    if (!tokenValid) {
+      return res.status(400).json({
+        Message: "유효하지 않은 시설 토큰입니다.",
+        ResultCode: "ERR_INVALID_TOKEN",
+      });
+    }
+
+    // 로그인된 사용자에 대해 facility_token 업데이트
+    const staff = await models.staff.update(
+      { facility_token, approval_status: "approved" },
+      { where: { id: req.session.user.id } }
+    );
+
+    return res.status(200).json({
+      Message: "직원 검증이 완료되었습니다.",
+      ResultCode: "OK",
+      Result: staff,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      Message: "서버 오류: " + err.message,
+      ResultCode: "ERR_INTERNAL",
+    });
+  }
+}
 
 async function upsertUser(req, res) {
   try {
@@ -142,26 +213,25 @@ async function upsertUser(req, res) {
       email,
       role,
       facility_id,
-      facility_number,
-      facility_token,
       approval_status,
     } = req.body;
 
     const currentUser = req.session.user;
+    console.log(currentUser);
     if (!currentUser) {
       return res
         .status(401)
         .json({ result: false, msg: "로그인이 필요합니다." });
     }
 
-    // 기존 사용자 조회
+    //기존 사용자 조회
     const existingUser = await models.staff.findOne({
-      where: { id: currentUser.user.id },
+      where: { id: currentUser.id },
     });
 
     if (!existingUser) {
-      // 신규 사용자 처리
-      if (role == "owner" && facility_number) {
+      // 1. 신규 사용자 처리(대표자)
+      if (role == "owner") {
         await models.staff.create({
           name,
           password: sha256(password),
@@ -169,58 +239,33 @@ async function upsertUser(req, res) {
           approval_status: "pending",
           role,
           facility_id,
-          facility_number,
         });
-
-        // 사업자번호 검증
-        await checkFacility(facility_number, email);
       } else if (role == "staff") {
-        // 직원 계정
-        const tokenValid = await models.staff.findOne({
-          where: { facility_token },
+        await models.staff.create({
+          name,
+          password: sha256(password),
+          email,
+          approval_status: "pending",
+          role,
+          facility_id,
         });
-        if (tokenValid) {
-          await models.staff.create({
-            name,
-            password: sha256(password),
-            email,
-            approval_status: "approved",
-            role,
-            facility_id,
-          });
-        } else {
-          return res
-            .status(400)
-            .json({ result: false, msg: "유효하지 않은 시설 토큰입니다." });
-        }
       }
     } else {
       // 기존 사용자 업데이트
-      const oldFacilityNumber = existingUser.facility_number;
       const updateData = {};
       if (name) updateData.name = name;
       if (password) updateData.password = sha256(password);
       if (email) updateData.email = email;
       if (role) updateData.role = role;
-      if (facility_number) updateData.facility_number = facility_number;
       if (approval_status) updateData.approval_status = approval_status;
 
-      await models.staff.update(updateData, { where: { id: userId } });
+      await models.staff.update(updateData, { where: { id: currentUser.id } });
 
-      // 시설 로그 기록
-      if (facility_number && facility_number !== oldFacilityNumber) {
-        await models.facility_log.create({
-          facility_id: existingUser.facility_id,
-          user_id: existingUser.id,
-          action: "UPDATE",
-          changed_data: {
-            facility_number: {
-              before: oldFacilityNumber,
-              after: facility_number,
-            },
-          },
-        });
-      }
+      // await models.facility_log.create({
+      //   facility_id: existingUser.facility_id,
+      //   user_id: existingUser.id,
+      //   action: "UPDATE",
+      // });
     }
 
     return res.status(200).json({ result: true });
@@ -347,7 +392,9 @@ module.exports = {
   getSession,
   upsertUser,
   approveFacility,
+  checkFacility,
   login,
   logout,
   geolocation,
+  checkStaff,
 };
