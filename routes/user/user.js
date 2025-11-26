@@ -51,123 +51,123 @@ async function geolocation(req, res) {
     });
   }
 }
-async function checkFacility(req, res) {
-  try {
-    const { bizNumber, ykiho } = req.body;
-    const user = req.session.user;
+// async function checkFacility(req, res) {
+//   try {
+//     const { bizNumber, ykiho } = req.body;
+//     const user = req.session.user;
 
-    if (!user) {
-      return res
-        .status(401)
-        .json({ Status: false, msg: "로그인이 필요합니다." });
-    }
+//     if (!user) {
+//       return res
+//         .status(401)
+//         .json({ Status: false, msg: "로그인이 필요합니다." });
+//     }
 
-    const id = user.id;
-    const serviceKey = process.env.OPEN_API;
+//     const id = user.id;
+//     const serviceKey = process.env.OPEN_API;
 
-    // 1. 사업자번호 검증
-    let bizValid = false;
-    try {
-      const bizResp = await axios.post(
-        `https://api.odcloud.kr/api/nts-businessman/v1/status?serviceKey=${serviceKey}&returnType=JSON`,
-        { b_no: [bizNumber] },
-        { headers: { "Content-Type": "application/json" }, timeout: 3000 }
-      );
+//     // 1. 사업자번호 검증
+//     let bizValid = false;
+//     try {
+//       const bizResp = await axios.post(
+//         `https://api.odcloud.kr/api/nts-businessman/v1/status?serviceKey=${serviceKey}&returnType=JSON`,
+//         { b_no: [bizNumber] },
+//         { headers: { "Content-Type": "application/json" }, timeout: 3000 }
+//       );
 
-      if (bizResp.data?.data?.length > 0) {
-        const result = bizResp.data.data[0];
-        if (result.b_stt === "계속사업자") bizValid = true;
-      }
-    } catch (err) {
-      console.error("사업자번호 조회 실패:", err.message);
-    }
+//       if (bizResp.data?.data?.length > 0) {
+//         const result = bizResp.data.data[0];
+//         if (result.b_stt === "계속사업자") bizValid = true;
+//       }
+//     } catch (err) {
+//       console.error("사업자번호 조회 실패:", err.message);
+//     }
 
-    // 2. 요양기호 검증
-    let ykihoValid = false;
-    if (ykiho) {
-      const ykihoUrl = `https://apis.data.go.kr/B551182/hospDiagInfoService1/getClinicTop5List1?serviceKey=${serviceKey}&numOfRows=1&pageNo=1&ykiho=${encodeURIComponent(ykiho)}`;
-      try {
-        const ykihoResp = await axios.get(ykihoUrl, { timeout: 3000 });
-        if (ykihoResp.status === 200) ykihoValid = true;
-      } catch (err) {
-        console.error("요양기호 조회 실패:", err.message);
-      }
-    }
+//     // 2. 요양기호 검증
+//     let ykihoValid = false;
+//     if (ykiho) {
+//       const ykihoUrl = `https://apis.data.go.kr/B551182/hospDiagInfoService1/getClinicTop5List1?serviceKey=${serviceKey}&numOfRows=1&pageNo=1&ykiho=${encodeURIComponent(ykiho)}`;
+//       try {
+//         const ykihoResp = await axios.get(ykihoUrl, { timeout: 3000 });
+//         if (ykihoResp.status === 200) ykihoValid = true;
+//       } catch (err) {
+//         console.error("요양기호 조회 실패:", err.message);
+//       }
+//     }
 
-    // 3. staff 업데이트
-    let staff;
-    if (bizValid || ykihoValid) {
-      const token = generateAdminToken();
-      await models.staff.update(
-        { approval_status: "verified", facility_token: token },
-        { where: { id } }
-      );
-      staff = await models.staff.findOne({ where: { id } });
-      return res.status(200).json({
-        Status: true,
-        Message: "검증에 성공하였습니다.",
-        Result: staff,
-      });
-    } else {
-      await models.staff.update(
-        { approval_status: "rejected" },
-        { where: { id } }
-      );
-      staff = await models.staff.findOne({ where: { id } });
-      return res
-        .status(401)
-        .json({ Status: false, Result: "검증에 실패하였습니다." });
-    }
-  } catch (err) {
-    console.error("검증 과정 실패:", err.message);
-    return res.status(500).json({ Status: false, error: err.message });
-  }
-}
+//     // 3. staff 업데이트
+//     let staff;
+//     if (bizValid || ykihoValid) {
+//       const token = generateAdminToken();
+//       await models.staff.update(
+//         { approval_status: "verified", facility_token: token },
+//         { where: { id } }
+//       );
+//       staff = await models.staff.findOne({ where: { id } });
+//       return res.status(200).json({
+//         Status: true,
+//         Message: "검증에 성공하였습니다.",
+//         Result: staff,
+//       });
+//     } else {
+//       await models.staff.update(
+//         { approval_status: "rejected" },
+//         { where: { id } }
+//       );
+//       staff = await models.staff.findOne({ where: { id } });
+//       return res
+//         .status(401)
+//         .json({ Status: false, Result: "검증에 실패하였습니다." });
+//     }
+//   } catch (err) {
+//     console.error("검증 과정 실패:", err.message);
+//     return res.status(500).json({ Status: false, error: err.message });
+//   }
+// }
 
 // admin 승인 API
-async function approveFacility(req, res) {
-  try {
-    // 관리자 권한 체크 (세션에서 role 확인)
-    if (!req.session.user || req.session.user.role !== "admin") {
-      return res.status(403).send({
-        result: false,
-        msg: "관리자 권한이 없습니다.",
-      });
-    }
-    const email = req.body.email;
-    // 먼저 verified 상태인지 확인
-    const staff = await models.staff.findOne({
-      where: { email: email },
-    });
-    if (!staff) {
-      return res.status(404).send({
-        result: false,
-        msg: "해당 유저를 찾을 수 없습니다.",
-      });
-    }
-    if (staff.approval_status !== "verified") {
-      return res.status(400).send({
-        result: false,
-        msg: `승인할 수 없는 상태입니다. 현재 상태: ${staff.approval_status}`,
-      });
-    }
-    // 승인 처리
-    await models.staff.update(
-      { approval_status: "approved" },
-      { where: { email } }
-    );
-    res.send({
-      result: true,
-      msg: "승인 완료",
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send({
-      result: false,
-      msg: err.toString(),
-    });
-  }
-}
+// async function approveFacility(req, res) {
+//   try {
+//     // 관리자 권한 체크 (세션에서 role 확인)
+//     if (!req.session.user || req.session.user.role !== "admin") {
+//       return res.status(403).send({
+//         result: false,
+//         msg: "관리자 권한이 없습니다.",
+//       });
+//     }
+//     const email = req.body.email;
+//     // 먼저 verified 상태인지 확인
+//     const staff = await models.staff.findOne({
+//       where: { email: email },
+//     });
+//     if (!staff) {
+//       return res.status(404).send({
+//         result: false,
+//         msg: "해당 유저를 찾을 수 없습니다.",
+//       });
+//     }
+//     if (staff.approval_status !== "verified") {
+//       return res.status(400).send({
+//         result: false,
+//         msg: `승인할 수 없는 상태입니다. 현재 상태: ${staff.approval_status}`,
+//       });
+//     }
+//     // 승인 처리
+//     await models.staff.update(
+//       { approval_status: "approved" },
+//       { where: { email } }
+//     );
+//     res.send({
+//       result: true,
+//       msg: "승인 완료",
+//     });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).send({
+//       result: false,
+//       msg: err.toString(),
+//     });
+//   }
+// }
 async function checkStaff(req, res) {
   const { facility_token } = req.body;
 
@@ -209,46 +209,82 @@ async function checkStaff(req, res) {
     });
   }
 }
-
 async function upsertUser(req, res) {
   try {
-    const { name, password, email, role, facility_id, approval_status } =
+    const { name, password, email, role, facility_id, facility_number, ykiho } =
       req.body;
 
     const currentUser = req.session.user;
-    console.log(currentUser);
     if (!currentUser) {
-      return res
-        .status(401)
-        .json({ result: false, msg: "로그인이 필요합니다." });
+      return res.status(401).json({
+        Message: "Unauthorized - 로그인 필요",
+        ResultCode: "ERR_UNAUTHORIZED",
+      });
     }
 
-    //기존 사용자 조회
+    // 기존 사용자 조회
     const existingUser = await models.staff.findOne({
       where: { id: currentUser.id },
     });
 
-    if (!existingUser) {
-      // 1. 신규 사용자 처리(대표자)
-      if (role == "owner") {
-        await models.staff.create({
-          name,
-          password: sha256(password),
-          email,
-          approval_status: "pending",
-          role,
-          facility_id,
-        });
-      } else if (role == "staff") {
-        await models.staff.create({
-          name,
-          password: sha256(password),
-          email,
-          approval_status: "pending",
-          role,
-          facility_id,
-        });
+    // 1. 사업자번호/요양기호 검증 (둘 중 하나라도 유효해야 가입)
+    let validFacility = false;
+    const serviceKey = process.env.OPEN_API;
+
+    // 1-1. 사업자번호 검증
+    if (facility_number) {
+      try {
+        const bizResp = await axios.post(
+          `https://api.odcloud.kr/api/nts-businessman/v1/status?serviceKey=${serviceKey}&returnType=JSON`,
+          { b_no: [facility_number] },
+          { headers: { "Content-Type": "application/json" }, timeout: 3000 }
+        );
+        if (bizResp.data?.data?.length > 0) {
+          const result = bizResp.data.data[0];
+          if (result.b_stt === "계속사업자") validFacility = true;
+        }
+      } catch (err) {
+        console.error("사업자번호 조회 실패:", err.message);
       }
+    }
+
+    // 1-2. 요양기호 검증
+    if (!validFacility && ykiho) {
+      try {
+        const ykihoUrl = `https://apis.data.go.kr/B551182/hospDiagInfoService1/getClinicTop5List1?serviceKey=${serviceKey}&numOfRows=1&pageNo=1&ykiho=${encodeURIComponent(
+          ykiho
+        )}`;
+        const ykihoResp = await axios.get(ykihoUrl, { timeout: 3000 });
+        if (ykihoResp.status === 200) validFacility = true;
+      } catch (err) {
+        console.error("요양기호 조회 실패:", err.message);
+      }
+    }
+
+    if (!validFacility) {
+      return res.status(400).json({
+        Message: "유효하지 않은 사업자번호 또는 요양기호입니다.",
+        ResultCode: "ERR_INVALID_FACILITY",
+      });
+    }
+
+    // 2. 신규 사용자 처리
+    if (!existingUser) {
+      await models.staff.create({
+        name,
+        password: sha256(password),
+        email,
+        approval_status: "pending",
+        role,
+        facility_id,
+        facility_number: facility_number || null,
+        ykiho: ykiho || null,
+      });
+
+      return res.status(200).json({
+        Message: "회원가입이 완료되었습니다.",
+        ResultCode: "OK",
+      });
     } else {
       // 기존 사용자 업데이트
       const updateData = {};
@@ -256,26 +292,23 @@ async function upsertUser(req, res) {
       if (password) updateData.password = sha256(password);
       if (email) updateData.email = email;
       if (role) updateData.role = role;
-      if (approval_status) updateData.approval_status = approval_status;
 
       await models.staff.update(updateData, { where: { id: currentUser.id } });
 
-      // await models.facility_log.create({
-      //   facility_id: existingUser.facility_id,
-      //   user_id: existingUser.id,
-      //   action: "UPDATE",
-      // });
+      return res.status(200).json({
+        Message: "회원 정보가 업데이트되었습니다.",
+        ResultCode: "OK",
+      });
     }
-
-    return res.status(200).json({ result: true });
   } catch (err) {
     console.error(err);
-    return res.status(400).json({
-      result: false,
-      msg: err.toString(),
+    return res.status(500).json({
+      Message: "서버 오류: " + err.message,
+      ResultCode: "ERR_INTERNAL",
     });
   }
 }
+
 
 async function login(req, res) {
   try {
