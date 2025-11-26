@@ -493,7 +493,7 @@ async function updateStaffStatus(req, res) {
       await models.staff.update(updateData, {
         where: { id },
       });
-      return res.status(200).json({ result: true });
+      return res.status(200).json({ result: true, msg:"사용자 정보가 수정되었습니다." });
     }
   } catch (err) {
     console.error(err);

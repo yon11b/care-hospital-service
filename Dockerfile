@@ -14,7 +14,7 @@ RUN npm install --production
 COPY . .
 
 # 컨테이너 외부에 노출할 포트
-EXPOSE 3000
+EXPOSE 8080
 
 # 서버 실행
 CMD ["npm", "start"]
