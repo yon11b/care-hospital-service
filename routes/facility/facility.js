@@ -256,13 +256,13 @@ async function upsertMeal(req, res) {
         meal_date: req.body.meal_date,
         breakfast_meal_picture_url: req.files.breakfast_meal_picture_url
           ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.breakfast_meal_picture_url[0].key}`
-          : undefined,
+          : null,
         lunch_meal_picture_url: req.files.lunch_meal_picture_url
           ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.lunch_meal_picture_url[0].key}`
-          : undefined,
+          : null,
         dinner_meal_picture_url: req.files.dinner_meal_picture_url
           ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.dinner_meal_picture_url[0].key}`
-          : undefined,
+          : null,
         week_meal_picture_url: req.files.week_meal_picture_url
           ? `https://${process.env.AWS_BUCKET}.s3.amazonaws.com/${req.files.week_meal_picture_url[0].key}`
           : undefined,
