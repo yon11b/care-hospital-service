@@ -12,9 +12,8 @@ const { authMiddleware } = require("../../middleware/authMiddleware.js");
 
 const {
   getSession,
-  upsertUser,
-  approveFacility,
-  checkFacility,
+  updateUser,
+  createUser,
   login,
   logout,
   geolocation,
@@ -26,11 +25,12 @@ const { makeSnsAuthUrl, handleCallback, refreshToken } = require("./sns");
 const { sendMessage, verifyAndLogin } = require("./phone");
 
 router.get("/session", getSession);
-router.post("/register/staff", upsertUser);
-router.post("/approveFacility", approveFacility); // 관리자 승인. 플랫폼 관리자 기능임.
+router.post("/register/staff", createUser);
+router.patch("/me", updateUser);
+//router.post("/approveFacility", approveFacility); // 관리자 승인. 플랫폼 관리자 기능임.
 router.post("/login", login);
 router.post("/logout", logout);
-router.post("/checkFacility", checkFacility); // 사업자등록번호, 요양기호 검증
+//router.post("/checkFacility", checkFacility); // 사업자등록번호, 요양기호 검증
 router.post("/checkStaff", checkStaff); // 직원의 토큰 검증
 
 router.get("/:userId/favorites", authMiddleware, getfavorites);
