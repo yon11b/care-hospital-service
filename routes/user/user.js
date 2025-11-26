@@ -82,7 +82,7 @@ async function checkFacility(req, res) {
       console.error("사업자번호 조회 실패:", err.message);
     }
 
-    // 2. 요양기호 검증 (status 200 여부만 확인)
+    // 2. 요양기호 검증
     let ykihoValid = false;
     if (ykiho) {
       const ykihoUrl = `https://apis.data.go.kr/B551182/hospDiagInfoService1/getClinicTop5List1?serviceKey=${serviceKey}&numOfRows=1&pageNo=1&ykiho=${encodeURIComponent(ykiho)}`;
@@ -103,14 +103,20 @@ async function checkFacility(req, res) {
         { where: { id } }
       );
       staff = await models.staff.findOne({ where: { id } });
-      return res.status(200).json({ Status: true, Result: staff });
+      return res.status(200).json({
+        Status: true,
+        Message: "검증에 성공하였습니다.",
+        Result: staff,
+      });
     } else {
       await models.staff.update(
         { approval_status: "rejected" },
         { where: { id } }
       );
       staff = await models.staff.findOne({ where: { id } });
-      return res.status(200).json({ Status: false, Result: staff });
+      return res
+        .status(401)
+        .json({ Status: false, Result: "검증에 실패하였습니다." });
     }
   } catch (err) {
     console.error("검증 과정 실패:", err.message);
@@ -194,7 +200,6 @@ async function checkStaff(req, res) {
     return res.status(200).json({
       Message: "직원 검증이 완료되었습니다.",
       ResultCode: "OK",
-      Result: staff,
     });
   } catch (err) {
     console.error(err);
@@ -207,14 +212,8 @@ async function checkStaff(req, res) {
 
 async function upsertUser(req, res) {
   try {
-    const {
-      name,
-      password,
-      email,
-      role,
-      facility_id,
-      approval_status,
-    } = req.body;
+    const { name, password, email, role, facility_id, approval_status } =
+      req.body;
 
     const currentUser = req.session.user;
     console.log(currentUser);
