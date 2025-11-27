@@ -33,6 +33,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         comment: "사업자등록번호",
       },
+      ykiho: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        comment: "요양기호",
+      },      
       facility_token: {
         type: DataTypes.STRING,
         allowNull: true,
