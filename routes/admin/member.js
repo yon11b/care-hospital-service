@@ -309,7 +309,7 @@ async function getStaffsList(req, res) {
         include: [
           {
             model: models.facility,
-            attributes: ["name"],
+            attributes: ["id", "name"],
             required: true, // 직원만 있는 기관
           },
         ],
@@ -325,6 +325,7 @@ async function getStaffsList(req, res) {
     // 직원 배열 가공
     const staffList = staffs.map((s) => ({
       id: s.id,
+      facility_id: s.facility?.id,
       facility_name: s.facility?.name || "", // 소속 기관
       role: s.role,
       name: s.name,
@@ -465,6 +466,53 @@ async function getFacilityStaffs(req, res) {
     });
   }
 }
+// 삭제 API (params 사용)
+async function deleteMember(req, res) {
+  try {
+    const { id } = req.params; // params에서 id 받기
+    const { role } = req.query;
+    if (!id || !role) {
+      return res
+        .status(400)
+        .json({ result: false, msg: "id와 role이 필요합니다." });
+    }
+
+    if (role === "staff" || role === "owner") {
+      const existingStaff = await models.staff.findOne({ where: { id } });
+      if (!existingStaff) {
+        return res
+          .status(404)
+          .json({ result: false, msg: "직원을 찾을 수 없습니다." });
+      }
+
+      await models.staff.destroy({ where: { id } });
+      return res
+        .status(200)
+        .json({ result: true, msg: "직원이 삭제되었습니다." });
+    } else if (role === "user") {
+      const existingUser = await models.users.findOne({ where: { id } });
+      if (!existingUser) {
+        return res
+          .status(404)
+          .json({ result: false, msg: "사용자를 찾을 수 없습니다." });
+      }
+
+      // user_sns 삭제
+      await models.user_sns.destroy({ where: { user_id: id } });
+
+      // users 삭제
+      await models.users.destroy({ where: { id } });
+      return res
+        .status(200)
+        .json({ result: true, msg: "사용자가 삭제되었습니다." });
+    } else {
+      return res.status(400).json({ result: false, msg: "잘못된 role입니다." });
+    }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ result: false, msg: err.toString() });
+  }
+}
 
 // 승인 상태 변경
 async function updateStaffStatus(req, res) {
@@ -493,7 +541,9 @@ async function updateStaffStatus(req, res) {
       await models.staff.update(updateData, {
         where: { id },
       });
-      return res.status(200).json({ result: true, msg:"사용자 정보가 수정되었습니다." });
+      return res
+        .status(200)
+        .json({ result: true, msg: "사용자 정보가 수정되었습니다." });
     }
   } catch (err) {
     console.error(err);
@@ -546,4 +596,5 @@ module.exports = {
   getFacilityStaffs,
   updateStaffStatus,
   updateUserStatus,
+  deleteMember,
 };

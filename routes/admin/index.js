@@ -15,12 +15,12 @@ const {
   removeUserFromBlacklist,
   getUsersList,
   getUserDetail,
-
   getStaffsList,
   getFacilitiesList,
   getFacilityStaffs,
   updateStaffStatus,
   updateUserStatus,
+  deleteMember,
 } = require("./member");
 const {
   getReservationStatistics,
@@ -80,6 +80,8 @@ router.get(
 );
 router.post("/members/staffs", requireRole(["admin"]), updateStaffStatus);
 router.post("/members/users", requireRole(["admin"]), updateUserStatus);
+
+router.delete("/members/:id", requireRole(["admin"]), deleteMember);
 
 // 4. 통계
 router.get(
