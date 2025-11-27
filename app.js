@@ -20,9 +20,14 @@ const corsOrigins = process.env.CORS_ORIGIN?.split(",") || [];
 
 const corsOptions = {
   origin: corsOrigins,
+  //origin:'*',//
   credentials: true,
 };
+const apiRouter = require("./routes");
+
+app.set("trust proxy", 1);
 app.use(cors(corsOptions));
+
 app.engine("html", ejs.renderFile);
 app.set("view engine", "html");
 
@@ -67,13 +72,14 @@ app.use(
     saveUninitialized: false,
     cookie: {
       maxAge: 3 * 60 * 60 * 1000,
-      sameSite: 'lax',
-      secure: false
+      sameSite: "lax",
+      secure: true,
     },
   })
 );
 
-app.use("/", require("./routes"));
+//app.use("/", require("./routes"));
+app.use("/api", apiRouter);
 app.use(history());
 
 if (process.env.proxy == "false") {
@@ -96,10 +102,6 @@ app.use((req, res, next) => {
   err.status = 404;
   next(err);
 });
-
-// cron 실행
-//require("./monitors/cron");
-//require("./monitors/runAnomalyDetection");
 
 // development error handler
 // will print stacktrace
