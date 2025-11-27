@@ -3,17 +3,16 @@ const sha256 = require("sha256");
 const { Op } = require("sequelize");
 const app = require("../../app");
 
-
 // 한국 시간으로 바꾸기 (YYYY-MM-DD HH:mm:ss)
 function formatDateKST(date) {
   if (!date) return null;
   const d = new Date(date);
   const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  const seconds = String(d.getSeconds()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hours = String(d.getHours()).padStart(2, "0");
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const seconds = String(d.getSeconds()).padStart(2, "0");
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
@@ -25,29 +24,30 @@ async function getFacilityAds(req, res) {
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;
     const offset = (page - 1) * limit;
-    const keyword = req.query.keyword || ""; 
+    const keyword = req.query.keyword || "";
 
     // 관리자 로그인 및 권한 체크는 미들웨어에서 처리됨
 
     // 광고 조회 (기관 정보 포함)
-    const { rows: ads, count: total } = await models.advertisement.findAndCountAll({
-      where: { 
-        description: { [Op.iLike]: `%${keyword}%` } 
-      },
-      order: [['created_at', 'DESC']], // 최신순
-      limit,
-      offset
-    });
+    const { rows: ads, count: total } =
+      await models.advertisement.findAndCountAll({
+        where: {
+          description: { [Op.iLike]: `%${keyword}%` },
+        },
+        order: [["created_at", "DESC"]], // 최신순
+        limit,
+        offset,
+      });
 
     // 결과 생성
-    const data = ads.map(ad => ({
+    const data = ads.map((ad) => ({
       id: ad.id,
       description: ad.description,
       approval_status: ad.approval_status,
-      start_date: formatDateKST(ad.start_date),
-      end_date: formatDateKST(ad.end_date),
-      approved_at: formatDateKST(ad.approved_at),
-    }));    
+      start_date: ad.start_date,
+      end_date: ad.end_date,
+      approved_at: ad.approved_at,
+    }));
 
     // 성공 응답
     res.status(200).json({
@@ -56,14 +56,13 @@ async function getFacilityAds(req, res) {
       page,
       limit,
       total, // 전체 광고 개수
-      data
+      data,
     });
-
   } catch (err) {
-    console.error('admin - getFacilityAds err:', err.message);
+    console.error("admin - getFacilityAds err:", err.message);
     res.status(500).json({
-      Message: 'Internal server error',
-      ResultCode: 'ERR_INTERNAL_SERVER',
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
       msg: err.toString(),
     });
   }
@@ -72,7 +71,7 @@ async function getFacilityAds(req, res) {
 // GET /admin/advertisements/{adId}
 async function getFacilityAdsDetail(req, res) {
   try {
-    const adId = parseInt(req.params.adId, 10); 
+    const adId = parseInt(req.params.adId, 10);
 
     // 관리자 로그인 및 권한 체크는 미들웨어에서 처리됨
 
@@ -90,9 +89,9 @@ async function getFacilityAdsDetail(req, res) {
       include: [
         {
           model: models.facility,
-          attributes: ['id', 'name', 'address', 'telno', 'kind']
-        }
-      ]
+          attributes: ["id", "name", "address", "telno", "kind"],
+        },
+      ],
     });
 
     if (!ad) {
@@ -108,17 +107,19 @@ async function getFacilityAdsDetail(req, res) {
       description: ad.description,
       approval_status: ad.approval_status,
       application_date: formatDateKST(ad.created_at), // 광고 신청일
-      approval_date: formatDateKST(ad.approved_at),   // 승인일
-      start_date: formatDateKST(ad.start_date),       // 노출 시작
-      end_date: formatDateKST(ad.end_date),           // 노출 종료
+      approval_date: formatDateKST(ad.approved_at), // 상태변경일
+      start_date: formatDateKST(ad.start_date), // 노출 시작
+      end_date: formatDateKST(ad.end_date), // 노출 종료
       updated_at: formatDateKST(ad.updated_at),
-      facility: ad.facility ? {
-        id: ad.facility.id,
-        name: ad.facility.name,
-        address: ad.facility.address,
-        telno: ad.facility.telno,
-        kind: ad.facility.kind,
-      } : null,
+      facility: ad.facility
+        ? {
+            id: ad.facility.id,
+            name: ad.facility.name,
+            address: ad.facility.address,
+            telno: ad.facility.telno,
+            kind: ad.facility.kind,
+          }
+        : null,
     };
 
     // 성공 응답
@@ -127,13 +128,11 @@ async function getFacilityAdsDetail(req, res) {
       ResultCode: "SUCCESS",
       data: adDetail,
     });
-
-
   } catch (err) {
-    console.error('admin - getFacilityAdsDetail err:', err.message);
+    console.error("admin - getFacilityAdsDetail err:", err.message);
     res.status(500).json({
-      Message: 'Internal server error',
-      ResultCode: 'ERR_INTERNAL_SERVER',
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
       msg: err.toString(),
     });
   }
@@ -142,7 +141,7 @@ async function getFacilityAdsDetail(req, res) {
 // PATCH /admin/advertisements/{adId}
 async function approveOrRejectAd(req, res) {
   try {
-    const adId = parseInt(req.params.adId, 10); 
+    const adId = parseInt(req.params.adId, 10);
     const { status } = req.body; // status: 'APPROVED' | 'REJECTED'
 
     // 관리자 로그인 및 권한 체크는 미들웨어에서 처리됨
@@ -155,60 +154,60 @@ async function approveOrRejectAd(req, res) {
     }
 
     // 승인/거절 상태 유효성 체크
-    if (!['approved', 'rejected'].includes(status)) {
+    if (!["approved", "rejected"].includes(status)) {
       return res.status(400).json({
         Message: "status는 'approved' 또는 'rejected'만 가능합니다.",
         ResultCode: "ERR_INVALID_STATUS",
       });
-    }        
+    }
 
     // 1. 광고 1개 조회
     const ad = await models.advertisement.findOne({
       where: { id: adId },
     });
 
-    if (!ad) return res.status(404).json({ 
-        Message: '신청한 광고가 존재하지 않습니다.',
-        ResultCode: 'ERR_NOT_FOUND',
-    });    
+    if (!ad)
+      return res.status(404).json({
+        Message: "신청한 광고가 존재하지 않습니다.",
+        ResultCode: "ERR_NOT_FOUND",
+      });
 
     // 2. 승인 or 거절 처리하기
     // 2-1. pending 상태의 신청 내역만 처리 가능
-    if (ad.approval_status !== 'pending') {
-      return res.status(400).json({
-        Message: `이미 처리된 광고입니다. 현재 상태: ${ad.approval_status}`,
-        ResultCode: 'ERR_ALREADY_PROCESSED',
-      });
-    }
+    // if (ad.approval_status !== "pending") {
+    //   return res.status(400).json({
+    //     Message: `이미 처리된 광고입니다. 현재 상태: ${ad.approval_status}`,
+    //     ResultCode: "ERR_ALREADY_PROCESSED",
+    //   });
+    // }
 
     // 2-2. 상태 변경
     ad.approval_status = status;
     ad.approved_at = new Date(); // 현재 시간
-    await ad.save();    
+    await ad.save();
 
     // 3. 응답
     res.status(200).json({
-      Message: `광고가 ${status === 'approved' ? '승인' : '거절'} 처리되었습니다.`,
+      Message: `광고가 ${status === "approved" ? "승인" : "거절"} 처리되었습니다.`,
       ResultCode: "SUCCESS",
       data: {
         id: ad.id,
         approval_status: ad.approval_status,
-        approved_at: formatDateKST(ad.approved_at)
+        approved_at: formatDateKST(ad.approved_at),
       },
-    });    
-
+    });
   } catch (err) {
-    console.error('admin - approveOrRejectAd err:', err.message);
+    console.error("admin - approveOrRejectAd err:", err.message);
     res.status(500).json({
-      Message: 'Internal server error',
-      ResultCode: 'ERR_INTERNAL_SERVER',
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
       msg: err.toString(),
     });
   }
 }
 
-module.exports = { 
-    getFacilityAds,
-    getFacilityAdsDetail,
-    approveOrRejectAd
+module.exports = {
+  getFacilityAds,
+  getFacilityAdsDetail,
+  approveOrRejectAd,
 };
