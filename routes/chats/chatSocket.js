@@ -6,7 +6,13 @@ function initChatSocket(io) {
     console.log("Socket connected:", socket.id);
 
     // 직원 대시보드 접속
-    socket.on("joinDashboard", (facility_id) => {
+    // socket.on("joinDashboard", (facility_id) => {
+    //   socket.join(`facility:${facility_id}`);
+    //   console.log(`${socket.id} joined facility:${facility_id}`);
+    // });
+
+    // 직원 대시보드 접속
+    socket.on("joinDashboard", ({ facility_id }) => {
       socket.join(`facility:${facility_id}`);
       console.log(`${socket.id} joined facility:${facility_id}`);
     });
@@ -41,6 +47,13 @@ function initChatSocket(io) {
       } catch (err) {
         console.error("joinRoom error:", err);
       }
+    });
+
+    // **채팅방 나가기**
+    socket.on("leaveRoom", ({ facility_id, guardian_id }) => {
+      const room_id = `${facility_id}:${guardian_id}`;
+      socket.leave(room_id);
+      console.log(`${socket.id} left room ${room_id}`);
     });
 
     // 메시지 전송
