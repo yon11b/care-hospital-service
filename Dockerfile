@@ -1,6 +1,9 @@
 # 베이스 이미지
 FROM node:20-alpine
 
+# 환경변수 설정
+#ENV NODE_ENV=development
+
 # 작업 디렉토리 생성
 WORKDIR /usr/src/app
 
