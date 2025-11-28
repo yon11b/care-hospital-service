@@ -68,12 +68,13 @@ app.use(
     cookie: {
       maxAge: 3 * 60 * 60 * 1000,
       sameSite: 'lax',
-      secure: false
+      secure: false, // true
     },
   })
 );
 
-app.use("/", require("./routes"));
+// app.use("/", require("./routes"));
+app.use("/api", require("./routes"));
 app.use(history());
 
 if (process.env.proxy == "false") {

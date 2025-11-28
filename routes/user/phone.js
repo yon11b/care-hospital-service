@@ -26,6 +26,12 @@ function formatPhoneNumber(phone) {
     : phone.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
 }
 
+// 이름 짓기
+function generateGuardianName() {
+  const randomNum = Math.floor(100000 + Math.random() * 900000); // 100000~999999
+  return `보호자${randomNum}`;
+}
+
 // ===========================================
 // 1. 인증번호 발송
 // ===========================================
@@ -173,11 +179,22 @@ async function verifyAndLogin(req, res) {
     // 사용 후 인증번호 삭제
     await authRecord.destroy();
 
+    if (!user.name) {
+      user.name = generateGuardianName();
+      await user.save(); // 이후 로그인/채팅 등에서 일관성 유지
+    }
+
     res.json({
       Message: "전화번호 인증 로그인 성공",
       ResultCode: 'SUCCESS',
-      user: { id: user.id, name: user.name, phone: user.phone },
-      token: accessToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone
+      },
+      token: accessToken, // 액세스 토큰
+      refreshToken: sns.refresh_token // refresh_token
+      
     });
 
   } catch (err) {
