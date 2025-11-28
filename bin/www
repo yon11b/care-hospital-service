@@ -24,8 +24,8 @@ const io = new Server(server, {
 initChatSocket(io);
 
 server.listen(app.get("port"), () => {
-  const dir = "./upload/";
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+ const dir = "./upload/";
+ if (!fs.existsSync(dir)) fs.mkdirSync(dir);
 });
 
 /**
