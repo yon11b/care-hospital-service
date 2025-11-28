@@ -79,7 +79,7 @@ app.use(
 );
 
 //app.use("/", require("./routes"));
-app.use("/api", apiRouter);
+app.use("/api", require("./routes"));
 app.use(history());
 
 if (process.env.proxy == "false") {

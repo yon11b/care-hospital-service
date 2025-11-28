@@ -18,6 +18,7 @@ const {
   logout,
   geolocation,
   checkStaff,
+  getJwtDetails
 } = require("./user");
 const { getfavorites, toggleFavorite } = require("./favorite");
 const { makeSnsAuthUrl, handleCallback, refreshToken } = require("./sns");
@@ -57,5 +58,10 @@ router.get("/geolocation", geolocation);
 // 전화번호 문자 발송
 router.post("/phone/send", sendMessage); // 코드 문자 전송
 router.post("/phone/verify", verifyAndLogin); // 코드 인증 및 로그인/회원가입
+
+// refreshtoken으로 유저 정보 받기
+
+// jwt로 유저 정보 받기
+router.get("/jwt/detail", authMiddleware, getJwtDetails);
 
 module.exports = router;
