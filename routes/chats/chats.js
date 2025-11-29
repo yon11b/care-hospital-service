@@ -30,6 +30,37 @@ async function getUserInfo(req) {
   }
 }
 
+async function getRoomsGuardian(req, res) {
+  try {
+    const user_id = req.user.id;
+
+    let whereClause = { guardian_id: user_id };
+
+    const rooms = await models.chat_room.findAll({
+      where: whereClause,
+      include: [
+        { model: models.facility, attributes: ["id", "name"] },
+        { model: models.user, attributes: ["id", "name"] },
+      ],
+    });
+
+    res.json({
+      Message: "Chat rooms select successfully.",
+      ResultCode: "ERR_OK",
+      Size: rooms.length,
+      Response: rooms,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
+      Status: 500,
+    });
+  }
+}
+
 async function getRooms(req, res) {
   try {
     const { user_type, user_id } = await getUserInfo(req);
@@ -45,6 +76,12 @@ async function getRooms(req, res) {
     } else if (user_type === "guardian") {
       // 보호자면 본인 관련 채팅방만 보기
       whereClause = { guardian_id: user_id };
+    } else {
+      res.status(404).json({
+        Message: "Invalid user_type",
+        ResultCode: "Bad request",
+        Status: 500,
+      });
     }
 
     const rooms = await models.chat_room.findAll({
@@ -144,4 +181,5 @@ async function getMessages(req, res) {
 module.exports = {
   getMessages,
   getRooms,
+  getRoomsGuardian,
 };

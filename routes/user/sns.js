@@ -245,7 +245,7 @@ async function handleCallback(req, res, provider) {
       login_at: new Date(),
       login_result: true,
     });
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV !== "development") {
       // 테스트
       // 현재 모바일 앱 deep link 대신 json으로 응답 -> 테스트용
       // JWT 만료시간 계산
