@@ -107,7 +107,7 @@ async function getFacilityAdsDetail(req, res) {
       description: ad.description,
       approval_status: ad.approval_status,
       application_date: ad.created_at, // 광고 신청일
-      approval_date: ad.approved_at, // 상태변경일
+      approved_at: ad.approved_at, // 상태변경일
       start_date: ad.start_date, // 노출 시작
       end_date: ad.end_date, // 노출 종료
       updated_at: ad.updated_at,
