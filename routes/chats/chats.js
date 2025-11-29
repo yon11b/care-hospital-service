@@ -50,7 +50,6 @@ async function getRoomsGuardian(req, res) {
       Size: rooms.length,
       Response: rooms,
     });
-
   } catch (error) {
     console.error(error);
 
@@ -77,6 +76,12 @@ async function getRooms(req, res) {
     } else if (user_type === "guardian") {
       // 보호자면 본인 관련 채팅방만 보기
       whereClause = { guardian_id: user_id };
+    } else {
+      res.status(404).json({
+        Message: "Invalid user_type",
+        ResultCode: "Bad request",
+        Status: 500,
+      });
     }
 
     const rooms = await models.chat_room.findAll({
