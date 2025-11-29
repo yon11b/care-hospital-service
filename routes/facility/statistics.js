@@ -475,14 +475,16 @@ async function getMonthlyCharts(req, res) {
     const reservationData = await models.reservation.findAll({
       attributes: [
         [
-          Sequelize.fn("DATE_TRUNC", "month", Sequelize.col("reserved_date")),
+          Sequelize.literal(
+            `TO_CHAR(DATE_TRUNC('month', reserved_date), 'YYYY-MM-DD')`
+          ),
           "month",
         ],
         [Sequelize.fn("COUNT", Sequelize.col("id")), "count"],
       ],
       where: { facility_id: facilityId },
       group: ["month"],
-      order: [["month", "ASC"]],
+      order: [Sequelize.literal("month ASC")],
       raw: true,
     });
 
@@ -490,20 +492,23 @@ async function getMonthlyCharts(req, res) {
     const consultationData = await models.chat_room.findAll({
       attributes: [
         [
-          Sequelize.fn("DATE_TRUNC", "month", Sequelize.col("updated_at")),
+          Sequelize.literal(
+            `TO_CHAR(DATE_TRUNC('month', updated_at), 'YYYY-MM-DD')`
+          ),
           "month",
         ],
         [Sequelize.fn("COUNT", Sequelize.col("room_id")), "count"],
       ],
       where: { facility_id: facilityId },
       group: ["month"],
-      order: [["month", "ASC"]],
+      order: [Sequelize.literal("month ASC")],
       raw: true,
     });
 
-    // 3. 0 채우기 (최신 12개월 기준)
+    // 3. 최근 12개월 만든 뒤 매칭 (UTC 강제 적용 → 환경 차이 제거)
     const months = Array.from({ length: 12 }, (_, i) =>
-      moment()
+      moment
+        .utc()
         .subtract(11 - i, "months")
         .startOf("month")
         .format("YYYY-MM-DD")
@@ -512,9 +517,14 @@ async function getMonthlyCharts(req, res) {
     const fillData = (data) => {
       const map = {};
       data.forEach((item) => {
-        map[moment(item.month).format("YYYY-MM-DD")] = parseInt(item.count, 10);
+        const key = moment.utc(item.month).format("YYYY-MM-DD");
+        map[key] = Number(item.count);
       });
-      return months.map((m) => ({ month: m, count: map[m] || 0 }));
+
+      return months.map((m) => ({
+        month: m,
+        count: map[m] || 0,
+      }));
     };
 
     res.json({
