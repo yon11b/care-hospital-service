@@ -391,16 +391,16 @@ async function getNotices(req, res) {
     const offset = (page - 1) * limit;
     const { keyword } = req.query;
 
-    // 해당 기관의 유저만...
-    if (
-      !req.session.user ||
-      req.session.user.facility_id != req.params.facilityid
-    ) {
-      return res.status(401).send({
-        Message: "Unauthorized",
-        ResultCode: "ERR_UNAUTHORIZED",
-      });
-    }
+    // // 해당 기관의 유저만...
+    // if (
+    //   !req.session.user ||
+    //   req.session.user.facility_id != req.params.facilityid
+    // ) {
+    //   return res.status(401).send({
+    //     Message: "Unauthorized",
+    //     ResultCode: "ERR_UNAUTHORIZED",
+    //   });
+    // }
 
     // 조건 필터
     const whereCondition = {
@@ -462,7 +462,6 @@ async function findFacilities(req, res) {
     });
   }
 }
-
 
 module.exports = {
   getFacilities,
