@@ -20,24 +20,31 @@ function formatDateKST(date) {
 // GET /admin/advertisements
 async function getFacilityAds(req, res) {
   try {
-    // 쿼리에서 페이지, limit 받아오기 (기본값 설정)
+    // 쿼리에서 페이지, limit, 키워드 받아오기
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;
     const offset = (page - 1) * limit;
     const keyword = req.query.keyword || "";
 
-    // 관리자 로그인 및 권한 체크는 미들웨어에서 처리됨
-
-    // 광고 조회 (기관 정보 포함)
-    const { rows: ads, count: total } =
-      await models.advertisement.findAndCountAll({
-        where: {
-          description: { [Op.iLike]: `%${keyword}%` },
+    // 광고 조회 (facility, staff 정보 포함)
+    const { rows: ads, count: total } = await advertisement.findAndCountAll({
+      where: {
+        description: { [Op.iLike]: `%${keyword}%` },
+      },
+      include: [
+        {
+          model: models.facility,
+          attributes: ["id", "name"], // 기관 id, 이름만 가져오기
         },
-        order: [["created_at", "DESC"]], // 최신순
-        limit,
-        offset,
-      });
+        {
+          model: models.staff,
+          attributes: ["id", "name"], // 사용자 id, 이름만 가져오기
+        },
+      ],
+      order: [["created_at", "DESC"]],
+      limit,
+      offset,
+    });
 
     // 결과 생성
     const data = ads.map((ad) => ({
@@ -47,6 +54,10 @@ async function getFacilityAds(req, res) {
       start_date: ad.start_date,
       end_date: ad.end_date,
       approved_at: ad.approved_at,
+      facility: ad.facility
+        ? { id: ad.facility.id, name: ad.facility.name }
+        : null,
+      user: ad.staff ? { id: ad.staff.id, name: ad.staff.name } : null,
     }));
 
     // 성공 응답
@@ -55,7 +66,7 @@ async function getFacilityAds(req, res) {
       ResultCode: "SUCCESS",
       page,
       limit,
-      total, // 전체 광고 개수
+      total,
       data,
     });
   } catch (err) {
@@ -67,6 +78,7 @@ async function getFacilityAds(req, res) {
     });
   }
 }
+
 // 2. 관리자 측에서 광고 상세(1개) 조회
 // GET /admin/advertisements/{adId}
 async function getFacilityAdsDetail(req, res) {
@@ -74,7 +86,6 @@ async function getFacilityAdsDetail(req, res) {
     const adId = parseInt(req.params.adId, 10);
 
     // 관리자 로그인 및 권한 체크는 미들웨어에서 처리됨
-
     if (isNaN(adId)) {
       return res.status(400).json({
         Message: "유효하지 않은 파라미터",
@@ -82,14 +93,17 @@ async function getFacilityAdsDetail(req, res) {
       });
     }
 
-    // 1. 광고 하나 조회
-    // 광고 조회 (기관 정보 포함)
+    // 광고 하나 조회 (facility, staff 정보 포함)
     const ad = await models.advertisement.findOne({
       where: { id: adId },
       include: [
         {
           model: models.facility,
           attributes: ["id", "name", "address", "telno", "kind"],
+        },
+        {
+          model: models.staff,
+          attributes: ["id", "name"],
         },
       ],
     });
@@ -120,6 +134,12 @@ async function getFacilityAdsDetail(req, res) {
             kind: ad.facility.kind,
           }
         : null,
+      user: ad.staff
+        ? {
+            id: ad.staff.id,
+            name: ad.staff.name,
+          }
+        : null,
     };
 
     // 성공 응답
@@ -137,6 +157,7 @@ async function getFacilityAdsDetail(req, res) {
     });
   }
 }
+
 // 3. 승인/거절 (APPROVED / REJECTED)
 // PATCH /admin/advertisements/{adId}
 async function approveOrRejectAd(req, res) {
