@@ -9,25 +9,39 @@ async function getFacilities(req, res) {
     const limit = parseInt(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
-    const latitude = req.query.latitude
-      ? parseFloat(req.query.latitude)
-      : 37.5664;
+    const latitude = req.query.latitude ? parseFloat(req.query.latitude) : null;
     const longitude = req.query.longitude
       ? parseFloat(req.query.longitude)
-      : 126.9779;
+      : null;
     const keyword = req.query.keyword || "";
     const kind = req.query.kind
       ? req.query.kind.split(",").map((k) => k.trim())
       : [];
 
     // 전체 개수 조회
+    const where = {};
+
+    // 키워드가 있으면 name 검색
+    if (keyword?.trim()) {
+      where.name = { [Op.iLike]: `%${keyword.trim()}%` };
+    }
+
+    // kind 필터가 있으면 적용
+    if (kind.length > 0) {
+      where.kind = { [Op.in]: kind };
+    }
+
+    // latitude/longitude가 있으면 null 체크
+    if (latitude != null) {
+      where.latitude = { [Op.ne]: null };
+    }
+    if (longitude != null) {
+      where.longitude = { [Op.ne]: null };
+    }
+
+    // count
     const totalCount = await models.facility.count({
-      where: {
-        ...(keyword && { name: { [Op.iLike]: `%${keyword}%` } }),
-        ...(longitude && { longitude: { [Op.ne]: null } }),
-        ...(latitude && { latitude: { [Op.ne]: null } }),
-        ...(kind.length > 0 && { kind: { [Op.in]: kind } }),
-      },
+      where,
       distinct: true,
     });
 

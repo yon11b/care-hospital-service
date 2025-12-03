@@ -29,7 +29,7 @@ const upload = multer({
     key: (req, file, callback) => {
       //console.log(req.body.today_meal_url);
       const ext = path.extname(file.originalname);
-      const uniqueKey = `image/meal-${Date.now()}-${Math.floor(Math.random()*10000)}${ext}`;
+      const uniqueKey = `image/meal-${Date.now()}-${Math.floor(Math.random() * 10000)}${ext}`;
       callback(null, uniqueKey);
     },
   }),
@@ -187,8 +187,5 @@ router.get(
   getChatStatistics
 ); // 상담 통계
 
-router.get(
-  "/dashboard/find",
-  findFacilities
-)
+router.get("/dashboard/find", findFacilities);
 module.exports = router;
