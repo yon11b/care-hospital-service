@@ -75,7 +75,7 @@ function buildStatusWhere(filter) {
 // ==============================
 async function findFacilities(filter) {
   const facilityWhere = buildFacilityWhere(filter);
-  console.log(`facilityWhere:` + facilityWhere);
+  //console.log(`facilityWhere:` + facilityWhere);
   const statusWhere = buildStatusWhere(filter);
 
   const hasCoords =
@@ -132,8 +132,8 @@ async function searchFacilities(req, res) {
       });
     }
 
-    console.log("teststsetsets");
-    console.log(req.body);
+    // console.log("teststsetsets");
+    // console.log(req.body);
     const gptPrompt = req.body.usersentence;
     // return res.status(200).send({
     //   result: true,
@@ -151,6 +151,7 @@ async function searchFacilities(req, res) {
     console.log(promptResult);
     console.log("===============");
     const facilities = await findFacilities(promptResult);
+    console.log(facilities);
 
     // 🔹 최종 JSON 반환
     return res.json({

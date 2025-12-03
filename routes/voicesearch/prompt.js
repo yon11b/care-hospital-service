@@ -66,18 +66,25 @@ JSON 구조는 다음과 같다:
 
   const filter = JSON.parse(res.choices[0].message.content);
 
-  // // “내 근처 / 주변” 문장일 때 처리
-  // const isNearMeSearch = /근처|주변/.test(text);
-  // if (isNearMeSearch) {
-  //   filter.location.near_me = true;
-  //   filter.location.sido = null;
-  //   filter.location.sggu = null;
-  //   filter.location.dong = null;
+  // “내 근처 / 주변” 문장일 때 처리
+  const isNearMeSearch = /근처|주변|부근/.test(text);
+  if (isNearMeSearch) {
+    filter.location.near_me = true;
+    filter.location.sido = null;
+    filter.location.sggu = null;
+    filter.location.dong = null;
 
-  //   const searchQueryMatch = text.match(/([가-힣0-9]+)(?=\s*근처|\s*주변)/);
-  const searchQuery = filter.location.coords.name || null;
-  if (searchQuery) filter.location.coords = await searchPlace(searchQuery);
-  // }
+    const searchQueryMatch = text.match(
+      /([가-힣0-9]+)(?=\s*근처|\s*주변|\s*부근)/
+    );
+    if (searchQueryMatch) {
+      const searchQuery = searchQueryMatch[0];
+      const place = await searchPlace(searchQuery);
+      if (place) {
+        filter.location.coords = place;
+      }
+    }
+  }
 
   return filter;
 }
