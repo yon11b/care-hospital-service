@@ -27,24 +27,25 @@ async function getFacilityAds(req, res) {
     const keyword = req.query.keyword || "";
 
     // 광고 조회 (facility, staff 정보 포함)
-    const { rows: ads, count: total } = await advertisement.findAndCountAll({
-      where: {
-        description: { [Op.iLike]: `%${keyword}%` },
-      },
-      include: [
-        {
-          model: models.facility,
-          attributes: ["id", "name"], // 기관 id, 이름만 가져오기
+    const { rows: ads, count: total } =
+      await models.advertisement.findAndCountAll({
+        where: {
+          description: { [Op.iLike]: `%${keyword}%` },
         },
-        {
-          model: models.staff,
-          attributes: ["id", "name"], // 사용자 id, 이름만 가져오기
-        },
-      ],
-      order: [["created_at", "DESC"]],
-      limit,
-      offset,
-    });
+        include: [
+          {
+            model: models.facility,
+            attributes: ["id", "name"], // 기관 id, 이름만 가져오기
+          },
+          {
+            model: models.staff,
+            attributes: ["id", "name"], // 사용자 id, 이름만 가져오기
+          },
+        ],
+        order: [["created_at", "DESC"]],
+        limit,
+        offset,
+      });
 
     // 결과 생성
     const data = ads.map((ad) => ({

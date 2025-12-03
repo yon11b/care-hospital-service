@@ -479,26 +479,33 @@ async function logout(req, res) {
 // 1. refreshtoken 을 이용해ㅓ 유저의 정보 모두 주는 함수.. 만들기
 // async function getRefreshTokenDetail(req, res){}
 
-
 // 2. jwt를 이용하여 유저의 정보를 모두 주는 함수 만들기
 // authMiddleware에서 받아온 payload 사용
 // 토큰이 없으면 404 authMiddleware - Token missing 발생
-// 토큰 검증 실패 401 authMiddleware - Invalid token 발생
 // GET api/user/jwt/detail
 async function getJwtDetails(req, res) {
   try {
     const payload = req.user; // { id, email }
 
     if (!payload || !payload.id) {
-      return res.status(401).json({ result: false, msg: "Invalid token payload" });
+      return res
+        .status(401)
+        .json({ result: false, msg: "Invalid token payload" });
     }
 
     // DB에서 사용자 정보 조회
     const user = await models.user.findByPk(payload.id, {
       attributes: [
-        'id', 'name', 'email', 'phone', 'created_at', 'status',
-        'facilityLikes', "updated_at", "currentLocation"       
-      ] // 필요한 필드
+        "id",
+        "name",
+        "email",
+        "phone",
+        "created_at",
+        "status",
+        "facilityLikes",
+        "updated_at",
+        "currentLocation",
+      ], // 필요한 필드
     });
 
     if (!user) {
@@ -508,7 +515,7 @@ async function getJwtDetails(req, res) {
     // 필요하면 SNS 정보도 같이 조회 가능
     const snsAccounts = await models.user_sns.findAll({
       where: { user_id: user.id },
-      attributes: ['provider', 'sns_id', "refresh_token"]
+      attributes: ["provider", "sns_id", "refresh_token"],
     });
 
     res.json({
@@ -516,15 +523,13 @@ async function getJwtDetails(req, res) {
       msg: "User details fetched successfully",
       user: {
         ...user.toJSON(),
-        snsAccounts
-      }
+        snsAccounts,
+      },
     });
-
   } catch (err) {
     res.status(500).json({ result: false, msg: err.toString() });
   }
 }
-
 
 module.exports = {
   getSession,

@@ -18,7 +18,7 @@ const {
   logout,
   geolocation,
   checkStaff,
-  getJwtDetails
+  getJwtDetails,
 } = require("./user");
 const { getfavorites, toggleFavorite } = require("./favorite");
 const { makeSnsAuthUrl, handleCallback, refreshToken } = require("./sns");

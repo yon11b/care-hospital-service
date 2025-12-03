@@ -116,8 +116,8 @@ async function removeUserFromBlacklist(req, res) {
 async function getUsersList(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
-    const size = parseInt(req.query.size) || 20;
-    const offset = (page - 1) * size;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
     const keyword = req.query.keyword;
     const status = req.query.status; // normal / blacklist
     const sortBy = req.query.sortBy || "created_at"; // 정렬 컬럼
@@ -139,11 +139,11 @@ async function getUsersList(req, res) {
     }
 
     // 조회
-    const { count: totalUsers, rows: users } =
+    const { count: totalCount, rows: users } =
       await models.user.findAndCountAll({
         where,
         order: [[sortBy, sortOrder]],
-        limit: size,
+        limit,
         offset,
         attributes: ["id", "name", "email", "phone", "status", "created_at"],
       });
@@ -152,10 +152,11 @@ async function getUsersList(req, res) {
       Message: "Users list successfully",
       ResultCode: "OK",
       pagination: {
-        total: totalUsers,
-        page: page,
-        size: size,
-        totalPages: Math.ceil(totalUsers / size),
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount,
       },
       data: users,
     });
@@ -283,7 +284,7 @@ async function getStaffsList(req, res) {
 
     // 직원 조건 (role=staff or owner)
     const staffWhere = {
-      role: { [Op.in]: ["staff", "owner"] },
+      role: { [Op.in]: ["staff", "owner", "admin"] },
     };
     if (approval_status) staffWhere.approval_status = approval_status;
 
@@ -517,7 +518,8 @@ async function deleteMember(req, res) {
 // 승인 상태 변경
 async function updateStaffStatus(req, res) {
   try {
-    const { id, name, password, email, role, approval_status } = req.body;
+    const { id, name, password, email, phone, role, approval_status } =
+      req.body;
 
     if (id) {
       // 기존 사용자 업데이트
@@ -535,6 +537,7 @@ async function updateStaffStatus(req, res) {
       if (name) updateData.name = name;
       if (password) updateData.password = password; // 이미 해시 처리한 경우
       if (email) updateData.email = email;
+      if (phone) updateData.phone = phone;
       if (role) updateData.role = role;
       if (approval_status) updateData.approval_status = approval_status;
 
@@ -553,7 +556,7 @@ async function updateStaffStatus(req, res) {
 // 승인 상태 변경
 async function updateUserStatus(req, res) {
   try {
-    const { id, name, password, email, role, status } = req.body;
+    const { id, name, password, phone, email, role, status } = req.body;
 
     if (id) {
       // 기존 사용자 업데이트
@@ -571,6 +574,7 @@ async function updateUserStatus(req, res) {
       if (name) updateData.name = name;
       if (password) updateData.password = password; // 이미 해시 처리한 경우
       if (email) updateData.email = email;
+      if (phone) updateData.phone = phone;
       if (role) updateData.role = role;
       if (status) updateData.status = status;
 
