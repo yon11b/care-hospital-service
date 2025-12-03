@@ -42,6 +42,11 @@ const {
   approveOrRejectAd,
 } = require("./advertisement");
 
+const {
+  getFacilityReservationDetail,
+  getFacilityReservations,
+} = require("./reservation");
+
 const { getFacilities, getFacility } = require("./facility");
 
 const { getAnomalies } = require("./anomaly");
@@ -104,6 +109,13 @@ router.get("/reviews", requireRole(["admin"]), getReviews);
 router.get("/reviews/:id", requireRole(["admin"]), getReview);
 router.patch("/reviews/:id", requireRole(["admin"]), updateReview);
 
+router.get("/reservations", requireRole(["admin"]), getFacilityReservations);
+
+router.get(
+  "/reservations/:id",
+  requireRole(["admin"]),
+  getFacilityReservationDetail
+);
 router.get("/statistics/users", requireRole(["admin"]), getUsers);
 router.get("/statistics/datas", requireRole(["admin"]), getDatas);
 
