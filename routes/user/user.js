@@ -381,6 +381,7 @@ async function login(req, res) {
         "facility_id",
         "approval_status",
         "role",
+        "facility_token",
       ],
     });
 

@@ -371,24 +371,24 @@ async function deleteCommunity(req, res) {
     }
 
     // S3 이미지 삭제 (실패해도 롤백하지 않음)
-    if (Array.isArray(community.images) && community.images.length > 0) {
-      const deleteParams = {
-        Bucket: process.env.AWS_BUCKET,
-        Delete: {
-          Objects: community.images.map((url) => ({
-            Key: decodeURIComponent(new URL(url).pathname.slice(1)),
-          })), // 가능하면 Key를 DB에 저장
-        },
-      };
+    // if (Array.isArray(community.images) && community.images.length > 0) {
+    //   const deleteParams = {
+    //     Bucket: process.env.AWS_BUCKET,
+    //     Delete: {
+    //       Objects: community.images.map((url) => ({
+    //         Key: decodeURIComponent(new URL(url).pathname.slice(1)),
+    //       })), // 가능하면 Key를 DB에 저장
+    //     },
+    //   };
 
-      // 이미지 실패해도 게시글은 삭제 처리 됨
-      try {
-        await s3.deleteObjects(deleteParams).promise();
-        console.log("S3 이미지 삭제 완료");
-      } catch (err) {
-        console.error("S3 삭제 실패:", err);
-      }
-    }
+    //   // 이미지 실패해도 게시글은 삭제 처리 됨
+    //   try {
+    //     await s3.deleteObjects(deleteParams).promise();
+    //     console.log("S3 이미지 삭제 완료");
+    //   } catch (err) {
+    //     console.error("S3 삭제 실패:", err);
+    //   }
+    // }
 
     // 소프트 삭제 처리 : 커뮤니티 글
     await community.update({ status: "DELETED", deleted_at: new Date() });

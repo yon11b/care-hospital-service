@@ -513,24 +513,24 @@ async function deleteReview(req, res) {
     }
 
     // S3 이미지 삭제 (실패해도 무시)
-    if (Array.isArray(review.images) && review.images.length > 0) {
-      const deleteParams = {
-        Bucket: process.env.AWS_BUCKET,
-        Delete: {
-          Objects: review.images.map((url) => ({
-            Key: decodeURIComponent(new URL(url).pathname.slice(1)),
-          })),
-        },
-      };
+    // if (Array.isArray(review.images) && review.images.length > 0) {
+    //   const deleteParams = {
+    //     Bucket: process.env.AWS_BUCKET,
+    //     Delete: {
+    //       Objects: review.images.map((url) => ({
+    //         Key: decodeURIComponent(new URL(url).pathname.slice(1)),
+    //       })),
+    //     },
+    //   };
 
-      // 이미지 실패해도 리뷰는 삭제 처리 됨
-      try {
-        await s3.deleteObjects(deleteParams).promise();
-        console.log("S3 이미지 삭제 완료");
-      } catch (err) {
-        console.error("S3 삭제 실패:", err);
-      }
-    }
+    //   // 이미지 실패해도 리뷰는 삭제 처리 됨
+    //   try {
+    //     await s3.deleteObjects(deleteParams).promise();
+    //     console.log("S3 이미지 삭제 완료");
+    //   } catch (err) {
+    //     console.error("S3 삭제 실패:", err);
+    //   }
+    // }
 
     // 리뷰 삭제
     // Soft delete으로 함
