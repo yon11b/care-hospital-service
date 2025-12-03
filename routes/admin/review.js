@@ -89,63 +89,62 @@ async function getReviews(req, res) {
 
 async function getReview(req, res) {
   try {
-    // 경로 파라미터에서 id 가져오기
     const reviewId = parseInt(req.params.id, 10);
-
-    // 리뷰 조회 (작성자 정보 포함)
+    // 리뷰 조회 (작성자, 시설, 댓글, 댓글 신고 포함)
     const review = await models.review.findOne({
-      where: {
-        id: reviewId,
-      },
-      attributes: [
-        "id",
-        "user_id",
-        "content",
-        "images",
-        "rating",
-        "status",
-        "visited",
-        "created_at",
-        "updated_at",
-        [
-          Sequelize.literal(`(
-        SELECT COUNT(*)
-        FROM reports AS report
-        WHERE report.target_id = review.id
-          AND report.type = 'REVIEW'
-      )`),
-          "report_count",
-        ],
-      ],
+      where: { id: reviewId },
       include: [
-        {
-          model: models.user,
-          attributes: ["id", "name"], // 작성자 정보
-        },
+        { model: models.user, attributes: ["id", "name", "email"] },
         { model: models.facility, attributes: ["id", "name"] },
-        { model: models.reservation, attributes: ["id"] },
+        {
+          model: models.report,
+          attributes: ["id", "reason", "status", "created_at", "resolved_at"],
+          include: [
+            {
+              model: models.user, // report.user_id와 연결된 user
+              attributes: ["id", "name", "email"],
+              required: false,
+            },
+          ],
+        },
       ],
     });
-
-    if (!review) {
-      return res.status(404).json({
-        Message: "리뷰가 존재하지 않습니다.",
-        ResultCode: "ERR_NOT_FOUND",
-      });
-    }
-
-    // 응답(Response) 보내기
-    res.status(200).json({
+    // 4. 응답
+    return res.status(200).json({
       Message: "Success",
       ResultCode: "OK",
-      data: review.get({ plain: true }),
+      Review: {
+        id: review.id,
+        title: review.title,
+        content: review.content,
+        images: review.images,
+        status: review.status,
+        rating: review.rating,
+        created_at: review.createdAt,
+        updated_at: review.updatedAt,
+        deleted_at: review.deleted_at,
+        user: {
+          id: review.user?.id || null,
+          name: review.user?.name || "알 수 없음",
+          email: review.user?.email,
+        },
+        facility: review.facility,
+        reports: review.reports.map((rep) => ({
+          id: rep.id,
+          user_name: rep.user?.name,
+          email: rep.user?.email,
+          reason: rep.reason,
+          status: rep.status,
+          created_at: rep.created_at,
+          resolved_at: rep.resolved_at,
+        })),
+      },
     });
   } catch (err) {
-    //bad request
     console.error("getReview error:", err);
-    res.status(500).json({
-      Message: "서버 에러",
-      ResultCode: "ERR_SERVER",
+    return res.status(500).json({
+      Message: "Internal server error",
+      ResultCode: "ERR_INTERNAL_SERVER",
       Error: err.toString(),
     });
   }

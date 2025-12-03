@@ -70,7 +70,7 @@ async function getReportDetail(req, res) {
     const report = await models.report.findOne({
       where: { id: reportId },
       include: [
-        { model: models.user, attributes: ["id", "name"] }, // 신고자
+        { model: models.user, attributes: ["id", "name", "email"] }, // 신고자
       ],
     });
 
@@ -88,7 +88,7 @@ async function getReportDetail(req, res) {
           where: { id: report.target_id },
           include: [
             // 원본 작성자
-            { model: models.user, attributes: ["id", "name"] },
+            { model: models.user, attributes: ["id", "name", "email"] },
             { model: models.facility, attributes: ["id", "name"] },
           ],
         });
@@ -96,13 +96,17 @@ async function getReportDetail(req, res) {
       case "COMMUNITY":
         target = await models.community.findOne({
           where: { id: report.target_id },
-          include: [{ model: models.user, attributes: ["id", "name"] }], // 작성자
+          include: [
+            { model: models.user, attributes: ["id", "name", "email"] },
+          ], // 작성자
         });
         break;
       case "COMMENT":
         target = await models.comment.findOne({
           where: { id: report.target_id },
-          include: [{ model: models.user, attributes: ["id", "name"] }], // 작성자
+          include: [
+            { model: models.user, attributes: ["id", "name", "email"] },
+          ], // 작성자
         });
         break;
     }

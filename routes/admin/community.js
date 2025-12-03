@@ -144,7 +144,7 @@ async function getCommunities(req, res) {
 //           parentId: r.parent_id,
 //           rootParentId: r.root_parent_id,
 //           userId: r.user_id,
-//           userName: r.user?.name || null, // 멘션 대상자
+//           user_name: r.user?.name || null, // 멘션 대상자
 //           created_at: r.createdAt,
 //         }));
 
@@ -152,7 +152,7 @@ async function getCommunities(req, res) {
 //         commentId: root.id,
 //         content: root.content,
 //         userId: root.user_id,
-//         userName: root.user?.name || null,
+//         user_name: root.user?.name || null,
 //         created_at: root.createdAt,
 //         replies: children, // 모든 하위 댓글 포함
 //       };
@@ -201,11 +201,18 @@ async function getCommunity(req, res) {
       include: [
         {
           model: models.user,
-          attributes: ["id", "name"],
+          attributes: ["id", "name", "email"],
         },
         {
           model: models.report,
           attributes: ["id", "reason", "status", "created_at", "resolved_at"],
+          include: [
+            {
+              model: models.user, // report.user_id와 연결된 user
+              attributes: ["id", "name", "email"],
+              required: false,
+            },
+          ],
         },
       ],
     });
@@ -222,7 +229,7 @@ async function getCommunity(req, res) {
       where: { community_id: communityId },
       order: [["created_at", "ASC"]],
       include: [
-        { model: models.user, attributes: ["id", "name"] },
+        { model: models.user, attributes: ["id", "name", "email"] },
         {
           model: models.report,
           attributes: ["id", "reason", "status", "created_at", "resolved_at"],
@@ -243,9 +250,12 @@ async function getCommunity(req, res) {
           parentId: r.parent_id,
           rootParentId: r.root_parent_id,
           userId: r.user_id,
-          userName: r.user?.name || null,
+          user_name: r.user?.name || null,
+          email: r.user?.email || null,
           reports: r.reports.map((rep) => ({
             id: rep.id,
+            user_name: rep.user?.name,
+            email: rep.user?.email,
             reason: rep.reason,
             status: rep.status,
             created_at: rep.created_at,
@@ -257,10 +267,13 @@ async function getCommunity(req, res) {
       return {
         commentId: root.id,
         content: root.content,
+        email: root.user?.email,
         userId: root.user_id,
-        userName: root.user?.name || null,
+        user_name: root.user?.name || null,
         reports: root.reports.map((rep) => ({
           id: rep.id,
+          user_name: rep.user?.name,
+          email: rep.user?.email,
           reason: rep.reason,
           status: rep.status,
           created_at: rep.created_at,
@@ -287,9 +300,12 @@ async function getCommunity(req, res) {
         user: {
           id: community.user?.id || null,
           name: community.user?.name || "알 수 없음",
+          email: community.user?.email,
         },
         reports: community.reports.map((rep) => ({
           id: rep.id,
+          user_name: rep.user?.name,
+          email: rep.user?.email,
           reason: rep.reason,
           status: rep.status,
           created_at: rep.created_at,
