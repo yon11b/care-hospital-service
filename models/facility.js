@@ -27,6 +27,11 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         comment: "기관 전화번호",
       },
+      photo_url: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        comment: "사진",
+      },
       description: {
         type: DataTypes.STRING,
         allowNull: false,
