@@ -2,6 +2,8 @@ const models = require("../../models");
 const sha256 = require("sha256");
 const { literal, Op } = require("sequelize");
 const app = require("../../app");
+const { sequelize } = require("../../models");
+const { verifyToken } = require("../../middleware/auth"); // 사용 중일 경우
 
 async function getFacilities(req, res) {
   try {
@@ -24,6 +26,7 @@ async function getFacilities(req, res) {
     // 키워드가 있으면 name 검색
     if (keyword?.trim()) {
       where.name = { [Op.iLike]: `%${keyword.trim()}%` };
+      where.kind = { [Op.iLike]: `%${keyword.trim()}%` };
     }
 
     // kind 필터가 있으면 적용
@@ -101,17 +104,67 @@ async function getFacilities(req, res) {
 
 async function getFacility(req, res) {
   try {
-    //pid: 받아온 id 파라미터
     const pid = req.params.id;
+    let user_id = null;
+
+    /** --------------------------
+     *  JWT 사용자 파싱
+     * --------------------------*/
+    try {
+      const authHeader = req.headers["authorization"];
+      const token = authHeader && authHeader.split(" ")[1];
+
+      if (token) {
+        const decoded = verifyToken(token, process.env.JWT_SECRET);
+        if (decoded) {
+          const user = await models.user.findByPk(decoded.id);
+          if (user) {
+            req.user = decoded;
+            user_id = decoded.id;
+          }
+        }
+      }
+      console.log(user);
+    } catch (e) {
+      console.warn("JWT 디코딩 실패:", e.message);
+      // 토큰 오류는 검색에 영향 없이 무시
+    }
+
+    /** --------------------------
+     *  Facility 조회
+     * --------------------------*/
     const resp = await models.facility.findOne({
-      where: {
-        id: pid,
+      where: { id: pid },
+      attributes: {
+        include: [
+          [
+            sequelize.literal(`
+              COALESCE(
+                (
+                  SELECT 
+                    CASE 
+                      WHEN EXISTS (
+                        SELECT 1
+                        FROM likes
+                        WHERE likes.user_id = ${user_id ?? 0}
+                          AND likes.facility_id = facility.id
+                      ) THEN TRUE
+                      ELSE FALSE
+                    END
+                ),
+                FALSE
+              )
+            `),
+            "isLike",
+          ],
+        ],
       },
       include: [
         { model: models.facility_status },
         { model: models.advertisement },
       ],
     });
+
     if (!resp) {
       return res.status(404).json({
         Message: "Facility not found",
@@ -125,14 +178,16 @@ async function getFacility(req, res) {
       Response: resp,
     });
   } catch (err) {
-    //bad request
-    console.log(err);
-    res.status(400).send({
+    console.error(err);
+    res.status(400).json({
       result: false,
       msg: err.toString(),
     });
   }
 }
+
+module.exports = { getFacility };
+
 async function upsertNotice(req, res) {
   try {
     // 메소드 검사

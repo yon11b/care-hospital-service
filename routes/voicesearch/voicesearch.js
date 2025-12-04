@@ -75,7 +75,7 @@ function buildStatusWhere(filter) {
 // ==============================
 async function findFacilities(filter) {
   const facilityWhere = buildFacilityWhere(filter);
-  //console.log(`facilityWhere:` + facilityWhere);
+
   const statusWhere = buildStatusWhere(filter);
 
   const hasCoords =

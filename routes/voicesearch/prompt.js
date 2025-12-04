@@ -85,7 +85,7 @@ JSON 구조는 다음과 같다:
       }
     }
   }
-
+  
   return filter;
 }
 
