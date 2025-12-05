@@ -22,7 +22,30 @@ async function getFacilities(req, res) {
 
     // 전체 개수 조회
     const where = {};
+    let user_id = null;
 
+    /** --------------------------
+     *  JWT 사용자 파싱
+     * --------------------------*/
+    try {
+      const authHeader = req.headers["authorization"];
+      const token = authHeader && authHeader.split(" ")[1];
+
+      if (token) {
+        const decoded = verifyToken(token, process.env.JWT_SECRET);
+        if (decoded) {
+          const user = await models.user.findByPk(decoded.id);
+          if (user) {
+            req.user = decoded;
+            user_id = decoded.id;
+          }
+        }
+      }
+      console.log(user);
+    } catch (e) {
+      console.warn("JWT 디코딩 실패:", e.message);
+      // 토큰 오류는 검색에 영향 없이 무시
+    }
     // 키워드가 있으면 name 검색
     if (keyword?.trim()) {
       where.name = { [Op.iLike]: `%${keyword.trim()}%` };
@@ -68,6 +91,27 @@ async function getFacilities(req, res) {
             ),
             "distance",
           ],
+
+          [
+            sequelize.literal(`
+              COALESCE(
+                (
+                  SELECT 
+                    CASE 
+                      WHEN EXISTS (
+                        SELECT 1
+                        FROM likes
+                        WHERE likes.user_id = ${user_id ?? 0}
+                          AND likes.facility_id = facility.id
+                      ) THEN TRUE
+                      ELSE FALSE
+                    END
+                ),
+                FALSE
+              )
+            `),
+            "isLike",
+          ],
         ],
       },
       include: [
@@ -82,6 +126,11 @@ async function getFacilities(req, res) {
 
     const isLastPage = offset + resp.length >= totalCount;
     const totalPage = Math.ceil(totalCount / resp.length);
+    resp.forEach((f) => {
+      if (f.average_rating != null) {
+        f.average_rating = parseFloat(Number(f.average_rating).toFixed(2));
+      }
+    });
 
     res.json({
       Message: "Facility select successfully.",
@@ -172,6 +221,7 @@ async function getFacility(req, res) {
         status: "404",
       });
     }
+    resp.average_rating = parseFloat(Number(resp.average_rating).toFixed(2));
     res.json({
       Message: "Facility select successfully.",
       ResultCode: "ERR_OK",
