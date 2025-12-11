@@ -450,6 +450,72 @@ async function getNotices(req, res) {
   }
 }
 
+// 시설 세부 페이지에서 공지사항 목록 조회
+// router.get("/:facilityid/notices", getFacilityNotices);
+async function getFacilityNotices(req, res) {
+  try {
+    const facilityId = req.params.facilityid;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+
+    const resp = await models.notice.findAll({
+      where: { facility_id: facilityId },
+      order: [["created_at", "DESC"]],
+      limit,
+      offset,
+    });
+
+    res.json({
+      Message: "Facility notices selected successfully.",
+      ResultCode: "ERR_OK",
+      Size: resp.length,
+      Response: resp,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).send({
+      result: false,
+      msg: err.toString(),
+    });
+  }
+}
+
+// 시설 세부 페이지에서 공지사항 상세 조회
+// router.get("/:facilityid/notices/:notyid", getFacilityNoticeDetail);
+async function getFacilityNoticeDetail(req, res) {
+  try {
+    const facilityId = req.params.facilityid;
+    const noticeId = req.params.notyid;
+
+    const resp = await models.notice.findOne({
+      where: {
+        id: noticeId,
+        facility_id: facilityId,  // 해당 기관의 공지인지 확인
+      },
+    });
+
+    if (!resp) {
+      return res.status(404).send({
+        Message: "Notice not found",
+        ResultCode: "ERR_NOT_FOUND",
+      });
+    }
+
+    res.json({
+      Message: "Facility notice detail selected successfully.",
+      ResultCode: "ERR_OK",
+      Response: resp,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(400).send({
+      result: false,
+      msg: err.toString(),
+    });
+  }
+}
+
 // 기관 회원가입 시 병원 찾기 조회
 // GET facilities/dashboard/find?search=홍
 async function findFacilities(req, res) {
@@ -488,4 +554,6 @@ module.exports = {
   getNotice,
   getMeals,
   findFacilities,
+  getFacilityNotices,
+  getFacilityNoticeDetail,
 };

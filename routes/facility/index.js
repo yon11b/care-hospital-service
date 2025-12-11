@@ -45,6 +45,8 @@ const {
   getNotice,
   getNotices,
   findFacilities,
+  getFacilityNotices,
+  getFacilityNoticeDetail,
 } = require("./facility");
 const {
   createReservation,
@@ -86,6 +88,7 @@ router.post("/:facilityid/dashboard", upsertFacility);
 router.post("/:facilityid/dashboard/meals", uploadMeals, upsertMeal);
 router.get("/:facilityid/meals", getMeals);
 
+// 기관 대시보드 공지사항 
 router.get("/:facilityid/dashboard/notices/:notyid", getNotice);
 router.get("/:facilityid/dashboard/notices", getNotices);
 router.post(
@@ -94,6 +97,11 @@ router.post(
   upsertNotice
 );
 router.delete("/:facilityid/dashboard/notices/:notyid", deleteNotice);
+
+// 시설 상세페이지 공지사항
+router.get("/:facilityid/notices", getFacilityNotices);  // 전체 목록
+router.get("/:facilityid/notices/:notyid", getFacilityNoticeDetail); // 상세 보기 -> 필요할까봐 작성해둠
+
 
 // 사용자의 예약 기능
 router.post("/:facilityId/reservation", authMiddleware, createReservation); // 예약하기
