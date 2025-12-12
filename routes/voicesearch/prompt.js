@@ -33,7 +33,7 @@ async function searchPlace(query) {
 
 async function gptPromptJson(text) {
   const res = await openai.chat.completions.create({
-    model: "gpt-4.1-nano",
+    model: "ft:gpt-4.1-nano-2025-04-14:personal::CikvkBCW",
     messages: [
       {
         role: "system",
@@ -85,7 +85,7 @@ JSON 구조는 다음과 같다:
       }
     }
   }
-  
+
   return filter;
 }
 
